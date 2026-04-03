@@ -871,3 +871,310 @@ input, textarea, select { font-family: inherit; }
   .auth-form-panel { padding: 40px 20px; }
   .hero-search { max-width: 100%; }
 }
+
+/* +------------------------------------------+
+   ¦          APP CARDS & GRIDS               ¦
+   +------------------------------------------+ */
+.app-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.app-card-premium {
+  position: relative;
+  border-radius: 18px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+}
+
+.app-card-premium:hover {
+  border-color: var(--accent-border);
+  box-shadow: 0 12px 30px rgba(37,99,235,0.08);
+}
+[data-theme="dark"] .app-card-premium:hover {
+  box-shadow: 0 12px 30px rgba(0,0,0,0.4);
+}
+
+.app-card-banner-area {
+  height: 110px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.app-card-banner-area::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.2) 100%);
+}
+
+.app-card-banner-emoji {
+  font-size: 48px;
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.15));
+}
+
+.app-card-status-badge {
+  position: absolute;
+  top: 12px; left: 12px;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(8px);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 100px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.app-card-price-chip {
+  position: absolute;
+  top: 12px; right: 12px;
+  padding: 4px 10px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.app-card-price-chip.free { background: var(--success); color: white; }
+.app-card-price-chip.paid { background: white; color: black; }
+[data-theme="dark"] .app-card-price-chip.paid { background: #222; color: white; border: 1px solid rgba(255,255,255,0.1); }
+
+.app-card-body-premium {
+  padding: 20px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-card-top-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.app-card-icon-wrap {
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid var(--borderStrong);
+  overflow: hidden;
+  background: var(--bg-secondary);
+}
+
+.app-card-icon-img {
+  width: 100%; height: 100%; object-fit: cover;
+}
+.app-card-icon-fallback {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+}
+
+.app-card-title-block { flex: 1; min-width: 0; }
+.app-card-name {
+  font-size: 15px; font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.app-card-category-label {
+  font-size: 12px; color: var(--text-muted);
+  font-weight: 500;
+}
+
+.app-card-desc {
+  font-size: 13px; color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 16px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.app-card-stats-row {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 12px;
+  margin-top: auto;
+}
+
+.app-card-stat-pill, .app-card-type-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 8px; border-radius: 6px;
+  font-size: 11px; font-weight: 600;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.app-card-tags {
+  display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px;
+}
+.app-card-tag {
+  font-size: 11px; color: var(--accent);
+  background: rgba(37,99,235,0.08);
+  padding: 2px 8px; border-radius: 100px;
+}
+
+.app-card-hover-arrow {
+  position: absolute; right: 20px; bottom: 20px;
+  background: var(--accent); color: white;
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transform: translate(-10px, 10px);
+  transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+}
+.app-card-premium:hover .app-card-hover-arrow {
+  opacity: 1; transform: translate(0, 0);
+}
+
+.app-card-like-btn {
+  position: absolute; top: 12px; right: 48px;
+  width: 32px; height: 32px; border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.3);
+  display: flex; align-items: center; justify-content: center;
+  color: white; cursor: pointer; transition: all 0.2s;
+}
+[data-theme="dark"] .app-card-like-btn {
+  background: rgba(0,0,0,0.3);
+  border-color: rgba(255,255,255,0.1);
+}
+.app-card-like-btn:hover { background: rgba(255,255,255,0.3); transform: scale(1.05); }
+.app-card-like-btn.liked { color: var(--orange); }
+
+
+/* +------------------------------------------+
+   ¦        ADVANCED UI & ANIMATIONS          ¦
+   +------------------------------------------+ */
+
+.marquee-container {
+  overflow: hidden;
+  white-space: nowrap;
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+}
+
+.marquee-content {
+  display: flex;
+  gap: 40px;
+  animation: marquee-scroll 30s linear infinite;
+  min-width: 200%;
+}
+
+@keyframes marquee-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+/* Glowing Border Bento Cards */
+.bento-card-advanced {
+  position: relative;
+  border-radius: 24px;
+  padding: 1px;
+  overflow: hidden;
+  z-index: 1;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s;
+}
+
+.bento-card-advanced:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+}
+[data-theme="dark"] .bento-card-advanced:hover {
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* Base static border gradient */
+.bento-card-advanced::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom right, var(--borderStrong), var(--border));
+  z-index: -2;
+  border-radius: 24px;
+}
+
+/* Rotating Glow on Hover */
+.bento-card-advanced-glow {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 150%; height: 150%;
+  background: conic-gradient(from 0deg, transparent 0 340deg, var(--accent) 360deg);
+  transform: translate(-50%, -50%);
+  animation: border-rotate 3s linear infinite;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  z-index: -1;
+}
+
+.bento-card-advanced:hover .bento-card-advanced-glow {
+  opacity: 1;
+}
+
+@keyframes border-rotate {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.bento-card-advanced-inner {
+  background: var(--bg-card);
+  border-radius: 23px;
+  height: 100%;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 2;
+}
+
+.bento-icon-glass {
+  width: 48px; height: 48px;
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 24px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  backdrop-filter: blur(10px);
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.15);
+}
+[data-theme="light"] .bento-icon-glass {
+  background: rgba(0,0,0,0.02);
+  border: 1px solid rgba(0,0,0,0.05);
+  box-shadow: none;
+}
+
+/* Advanced Mouse Tracking Glow effect wrapper */
+.hero-glow-tracker {
+  position: absolute;
+  width: 600px; height: 600px;
+  background: radial-gradient(circle closest-side, rgba(37,99,235,0.15), transparent);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  top: 0; left: 0;
+  transform: translate(-50%, -50%);
+  transition: opacity 0.3s;
+}
