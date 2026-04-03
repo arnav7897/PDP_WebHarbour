@@ -1,4 +1,8 @@
-const { getDeveloperOverview, getAppAnalytics } = require('../services/analytics.service');
+const {
+  getDeveloperOverview,
+  getAppAnalytics,
+  getTopDevelopers,
+} = require('../services/analytics.service');
 
 const developerOverviewHandler = async (req, res, next) => {
   try {
@@ -21,7 +25,21 @@ const developerAppAnalyticsHandler = async (req, res, next) => {
   }
 };
 
+const topDevelopersAnalyticsHandler = async (req, res, next) => {
+  try {
+    const result = await getTopDevelopers({
+      window: req.query.window,
+      sort: req.query.sort,
+      limit: req.query.limit,
+    });
+    return res.json(result);
+  } catch (err) {
+    return next(err);
+  }
+};
+
 module.exports = {
   developerOverviewHandler,
   developerAppAnalyticsHandler,
+  topDevelopersAnalyticsHandler,
 };

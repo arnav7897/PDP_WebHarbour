@@ -11,6 +11,7 @@ const {
   publishAppHandler,
   submitAppHandler,
   createAppVersionHandler,
+  updateAppVersionHandler,
   listAppVersionsHandler,
   uploadAppVersionHandler,
   uploadAppAssetHandler,
@@ -670,6 +671,37 @@ router.delete('/:id/favorite', auth, requireRole('USER'), removeFavoriteHandler)
  *         description: Duplicate version
  */
 router.post('/:id/versions', auth, requireRole('DEVELOPER'), createAppVersionHandler);
+
+/**
+ * @openapi
+ * /apps/{id}/versions/{versionId}:
+ *   patch:
+ *     tags: [Apps]
+ *     summary: Update an app version
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *       - in: path
+ *         name: versionId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Version updated
+ *       400:
+ *         description: Validation error
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Version not found
+ */
+router.patch('/:id/versions/:versionId', auth, requireRole('DEVELOPER'), updateAppVersionHandler);
 
 /**
  * @openapi

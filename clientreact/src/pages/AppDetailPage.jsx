@@ -1,17 +1,75 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
 import api from '../lib/api';
 import { useAuthStore } from '../store/authStore';
 import { StarRating, StatusBadge, PageLoader, EmptyState } from '../components/ui';
 import toast from 'react-hot-toast';
 import {
-  Download, Heart, Flag, Star, Tag, Package, Globe, Calendar,
-  ChevronLeft, ExternalLink, Shield, ArrowDownToLine, User
+  Download,
+  Heart,
+  Star,
+  Tag,
+  ChevronLeft,
+  Shield,
+  ArrowDownToLine,
+  Calendar,
+  Globe,
+  Package,
+  Sparkles,
+  CheckCircle2,
+  MonitorSmartphone,
+  FileArchive,
+  BadgeCheck,
+  Clock3,
 } from 'lucide-react';
 
 const APP_EMOJIS = ['🚀', '⚡', '🎯', '💡', '🔧', '🎮', '📱', '🌐', '🔑', '📊'];
+const APP_GRADIENTS = [
+  'linear-gradient(135deg, #0f172a 0%, #1d4ed8 45%, #38bdf8 100%)',
+  'linear-gradient(135deg, #172554 0%, #4f46e5 50%, #818cf8 100%)',
+  'linear-gradient(135deg, #052e16 0%, #16a34a 50%, #4ade80 100%)',
+  'linear-gradient(135deg, #431407 0%, #ea580c 45%, #fdba74 100%)',
+  'linear-gradient(135deg, #3f0d12 0%, #b91c1c 50%, #fb7185 100%)',
+];
+
+const formatCount = (value = 0) => {
+  if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+  if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+  return String(value);
+};
+
+const formatDate = (value) => {
+  if (!value) return null;
+  return new Date(value).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+};
+
+const getVisualSeed = (id) => {
+  const numericId = Number(id) || 0;
+  return {
+    emoji: APP_EMOJIS[numericId % APP_EMOJIS.length],
+    gradient: APP_GRADIENTS[numericId % APP_GRADIENTS.length],
+  };
+};
+
+const appSurfaceStyle = {
+  background: 'var(--bg-card)',
+  border: '1px solid var(--border)',
+  borderRadius: 24,
+  boxShadow: 'var(--shadow-sm)',
+};
+
+const sectionTitleStyle = {
+  fontFamily: "'Space Grotesk'",
+  fontSize: 22,
+  fontWeight: 800,
+  letterSpacing: '-0.03em',
+  marginBottom: 10,
+};
 
 export default function AppDetailPage() {
   const { id } = useParams();
@@ -25,26 +83,26 @@ export default function AppDetailPage() {
 
   const { data: app, isLoading, error } = useQuery({
     queryKey: ['app', id],
-    queryFn: () => api.get(`/apps/${id}`).then(r => r.data),
+    queryFn: () => api.get(`/apps/${id}`).then((r) => r.data),
   });
 
-  const { data: versions } = useQuery({
+  const { data: versionsResponse } = useQuery({
     queryKey: ['app', id, 'versions'],
-    queryFn: () => api.get(`/apps/${id}/versions`).then(r => r.data),
+    queryFn: () => api.get(`/apps/${id}/versions`).then((r) => r.data),
     enabled: !!id,
   });
 
-  const { data: reviews } = useQuery({
+  const { data: reviewsResponse } = useQuery({
     queryKey: ['app', id, 'reviews'],
-    queryFn: () => api.get(`/apps/${id}/reviews`).then(r => r.data),
+    queryFn: () => api.get(`/apps/${id}/reviews`).then((r) => r.data),
     enabled: !!id,
   });
 
   const downloadMutation = useMutation({
-    mutationFn: () => api.post(`/apps/${id}/download`),
+    mutationFn: (versionId) => api.post(`/apps/${id}/download`, versionId ? { versionId } : {}),
     onSuccess: () => {
       toast.success('Download started!');
-      queryClient.invalidateQueries(['app', id]);
+      queryClient.invalidateQueries({ queryKey: ['app', id] });
     },
     onError: (err) => toast.error(err.response?.data?.error?.message || 'Download failed'),
   });
@@ -56,7 +114,7 @@ export default function AppDetailPage() {
         : api.delete(`/apps/${id}/favorite`),
     onSuccess: () => {
       toast.success('Updated favorites!');
-      queryClient.invalidateQueries(['app', id]);
+      queryClient.invalidateQueries({ queryKey: ['app', id] });
     },
     onError: (err) => toast.error(err.response?.data?.error?.message || 'Action failed'),
   });
@@ -68,315 +126,714 @@ export default function AppDetailPage() {
       setReviewComment('');
       setReviewTitle('');
       setReviewRating(5);
-      queryClient.invalidateQueries(['app', id, 'reviews']);
+      queryClient.invalidateQueries({ queryKey: ['app', id, 'reviews'] });
+      queryClient.invalidateQueries({ queryKey: ['app', id] });
     },
     onError: (err) => toast.error(err.response?.data?.error?.message || 'Review failed'),
   });
 
   const handleDownload = () => {
-    if (!isAuthenticated) { toast.error('Please log in to download'); return; }
+    if (!isAuthenticated) {
+      toast.error('Please log in to download');
+      return;
+    }
     window.open(`/apps/${id}/download/redirect`, '_blank');
     downloadMutation.mutate();
   };
 
+  const handleVersionDownload = (version) => {
+    if (!isAuthenticated) {
+      toast.error('Please log in to download');
+      return;
+    }
+    window.open(`/apps/${id}/download/redirect?versionId=${version.id}`, '_blank');
+    downloadMutation.mutate(version.id);
+  };
+
   const handleReview = (e) => {
     e.preventDefault();
-    if (!isAuthenticated) { toast.error('Please log in to review'); return; }
+    if (!isAuthenticated) {
+      toast.error('Please log in to review');
+      return;
+    }
     reviewMutation.mutate({ rating: reviewRating, title: reviewTitle, comment: reviewComment });
   };
 
   if (isLoading) return <PageLoader />;
 
-  if (error) return (
-    <div className="container section">
-      <EmptyState icon="❌" title="App not found" description="The app you're looking for doesn't exist." />
-    </div>
-  );
+  if (error) {
+    return (
+      <div className="container section">
+        <EmptyState icon="❌" title="App not found" description="The app you're looking for doesn't exist." />
+      </div>
+    );
+  }
 
-  const emoji = APP_EMOJIS[(parseInt(id) || 0) % APP_EMOJIS.length];
+  const visualSeed = getVisualSeed(id);
+  const screenshots = Array.isArray(app?.screenshots) ? app.screenshots : [];
+  const versions = Array.isArray(versionsResponse) ? versionsResponse : versionsResponse?.items || [];
+  const reviews = reviewsResponse?.items || reviewsResponse || [];
+  const latestVersion = versions[0] || null;
+  const heroStats = [
+    {
+      label: 'Rating',
+      value: app?.averageRating ? Number(app.averageRating).toFixed(1) : 'New',
+      helper: app?.reviewCount ? `${formatCount(app.reviewCount)} reviews` : 'No reviews yet',
+      icon: <Star size={14} />,
+    },
+    {
+      label: 'Downloads',
+      value: formatCount(app?.downloadCount || 0),
+      helper: 'Total installs',
+      icon: <ArrowDownToLine size={14} />,
+    },
+    {
+      label: 'Category',
+      value: app?.category?.name || 'Marketplace',
+      helper: app?.contentType || 'Digital app',
+      icon: <Package size={14} />,
+    },
+  ];
+  const keyFacts = [
+    { icon: <MonitorSmartphone size={14} />, label: 'Platforms', value: app?.platforms?.join(', ') || 'Web' },
+    { icon: <FileArchive size={14} />, label: 'Size', value: app?.fileSize || 'Varies by file' },
+    { icon: <Calendar size={14} />, label: 'Updated', value: formatDate(app?.lastUpdatedAt || app?.updatedAt) || 'Recently' },
+    { icon: <BadgeCheck size={14} />, label: 'License', value: app?.licenseType || 'Standard' },
+  ];
+  const detailRows = [
+    { label: 'Category', value: app?.category?.name },
+    { label: 'Content Type', value: app?.contentType },
+    { label: 'Platforms', value: app?.platforms?.join(', ') },
+    { label: 'Published', value: formatDate(app?.publishedAt) },
+    { label: 'Last Updated', value: formatDate(app?.lastUpdatedAt || app?.updatedAt) },
+    { label: 'File Size', value: app?.fileSize },
+    { label: 'License', value: app?.licenseType },
+  ].filter((row) => row.value);
+  const tabs = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'versions', label: 'Versions' },
+    { id: 'reviews', label: 'Ratings & Reviews' },
+  ];
 
   return (
-    <div>
-      {/* Banner */}
-      <div style={{
-        height: 260,
-        background: app?.bannerUrl
-          ? `url(${app.bannerUrl}) center/cover`
-          : 'linear-gradient(135deg, #1e1e2e, #2d2d44, #1e2e3e)',
-        position: 'relative',
-      }}>
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent, rgba(9,9,11,0.9))' }} />
-        <div className="container" style={{ height: '100%', display: 'flex', alignItems: 'flex-end', paddingBottom: 24, position: 'relative' }}>
+    <div style={{ background: 'var(--bg-primary)', minHeight: '100vh', paddingBottom: 80 }}>
+      <section
+        style={{
+          position: 'relative',
+          overflow: 'hidden',
+          background: app?.bannerUrl
+            ? `linear-gradient(180deg, rgba(9,9,11,0.16), rgba(9,9,11,0.75)), url(${app.bannerUrl}) center/cover`
+            : visualSeed.gradient,
+          minHeight: 360,
+          borderBottom: '1px solid rgba(255,255,255,0.08)',
+        }}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'radial-gradient(circle at top right, rgba(255,255,255,0.18), transparent 28%), radial-gradient(circle at left center, rgba(255,255,255,0.12), transparent 32%)',
+          }}
+        />
+        <div className="container" style={{ position: 'relative', zIndex: 1, paddingTop: 28, paddingBottom: 54 }}>
           <button
             className="btn btn-ghost btn-sm"
             onClick={() => navigate(-1)}
-            style={{ position: 'absolute', top: 16, left: 24 }}
+            style={{
+              borderRadius: 999,
+              background: 'rgba(255,255,255,0.12)',
+              color: 'white',
+              borderColor: 'rgba(255,255,255,0.16)',
+              backdropFilter: 'blur(10px)',
+            }}
           >
             <ChevronLeft size={16} /> Back
           </button>
-        </div>
-      </div>
 
-      <div className="container">
-        {/* App Header */}
-        <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', marginTop: -32, marginBottom: 32, flexWrap: 'wrap' }}>
-          {/* Icon */}
-          <div style={{
-            width: 80, height: 80, borderRadius: 16, flexShrink: 0,
-            background: app?.iconUrl ? undefined : 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-            border: '3px solid var(--bg-primary)',
-            overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 32, zIndex: 10,
-          }}>
-            {app?.iconUrl
-              ? <img src={app.iconUrl} alt={app.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              : emoji
-            }
-          </div>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gap: 28,
+              alignItems: 'end',
+              marginTop: 42,
+            }}
+          >
+            <div>
+              <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start', marginBottom: 18 }}>
+                <div
+                  style={{
+                    width: 108,
+                    height: 108,
+                    borderRadius: 28,
+                    overflow: 'hidden',
+                    flexShrink: 0,
+                    border: '1px solid rgba(255,255,255,0.18)',
+                    boxShadow: '0 24px 50px rgba(0,0,0,0.22)',
+                    background: 'rgba(255,255,255,0.14)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 42,
+                    backdropFilter: 'blur(12px)',
+                  }}
+                >
+                  {app?.iconUrl ? (
+                    <img src={app.iconUrl} alt={app.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    visualSeed.emoji
+                  )}
+                </div>
 
-          {/* Info */}
-          <div style={{ flex: 1, minWidth: 200 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
-              <h1 style={{ fontSize: 24, fontWeight: 800 }}>{app?.name}</h1>
-              {app?.status && <StatusBadge status={app.status} />}
-            </div>
-            <div style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 8 }}>
-              {app?.category?.name} · {app?.contentType}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-              {app?.averageRating > 0 && (
-                <StarRating rating={app.averageRating} count={app.reviewCount} />
-              )}
-              <span style={{ fontSize: 13, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                <ArrowDownToLine size={13} /> {app?.downloadCount?.toLocaleString() || 0} downloads
-              </span>
-            </div>
-          </div>
+                <div style={{ minWidth: 0, paddingTop: 6 }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginBottom: 10 }}>
+                    {app?.status && <StatusBadge status={app.status} />}
+                    <span
+                      className="badge"
+                      style={{
+                        background: 'rgba(255,255,255,0.12)',
+                        color: 'white',
+                        border: '1px solid rgba(255,255,255,0.18)',
+                      }}
+                    >
+                      <Shield size={10} /> Verified listing
+                    </span>
+                  </div>
 
-          {/* Actions */}
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-            <button
-              className="btn btn-primary btn-lg"
-              onClick={handleDownload}
-              disabled={downloadMutation.isLoading}
-            >
-              <Download size={18} />
-              {app?.isFree ? 'Download Free' : `Download $${app?.price?.toFixed(2)}`}
-            </button>
-            {isAuthenticated && (
-              <button
-                className="btn btn-secondary"
-                onClick={() => favoriteMutation.mutate('add')}
-                disabled={favoriteMutation.isLoading}
-                title="Add to favorites"
+                  <h1
+                    style={{
+                      fontFamily: "'Space Grotesk'",
+                      fontSize: 'clamp(32px, 5vw, 48px)',
+                      fontWeight: 900,
+                      lineHeight: 1.02,
+                      letterSpacing: '-0.05em',
+                      color: 'white',
+                      marginBottom: 10,
+                    }}
+                  >
+                    {app?.name}
+                  </h1>
+
+                  <div style={{ color: 'rgba(255,255,255,0.82)', fontSize: 16, fontWeight: 600, marginBottom: 10 }}>
+                    {app?.category?.name || 'Marketplace app'} {app?.contentType ? `• ${app.contentType}` : ''}
+                  </div>
+
+                  <p style={{ maxWidth: 720, color: 'rgba(255,255,255,0.72)', fontSize: 15, lineHeight: 1.7, marginBottom: 0 }}>
+                    {app?.shortDescription || app?.description || 'A polished digital product built for fast installs and everyday use.'}
+                  </p>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                  gap: 12,
+                }}
               >
-                <Heart size={16} />
-              </button>
-            )}
+                {heroStats.map(({ label, value, helper, icon }) => (
+                  <div
+                    key={label}
+                    style={{
+                      padding: '16px 18px',
+                      borderRadius: 22,
+                      background: 'rgba(255,255,255,0.12)',
+                      border: '1px solid rgba(255,255,255,0.12)',
+                      backdropFilter: 'blur(16px)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'rgba(255,255,255,0.76)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
+                      {icon}
+                      {label}
+                    </div>
+                    <div style={{ color: 'white', fontSize: 24, fontWeight: 800, letterSpacing: '-0.03em', marginBottom: 4 }}>
+                      {value}
+                    </div>
+                    <div style={{ color: 'rgba(255,255,255,0.68)', fontSize: 13 }}>{helper}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div
+              style={{
+                background: 'rgba(255,255,255,0.16)',
+                border: '1px solid rgba(255,255,255,0.18)',
+                borderRadius: 28,
+                padding: 24,
+                backdropFilter: 'blur(18px)',
+                color: 'white',
+                boxShadow: '0 24px 60px rgba(0,0,0,0.2)',
+              }}
+            >
+              <div style={{ fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.72)', marginBottom: 8 }}>
+                Install
+              </div>
+              <div style={{ fontSize: 34, fontWeight: 900, letterSpacing: '-0.05em', marginBottom: 4 }}>
+                {app?.isFree ? 'Free' : `$${Number(app?.price || 0).toFixed(2)}`}
+              </div>
+              <p style={{ color: 'rgba(255,255,255,0.74)', lineHeight: 1.7, fontSize: 14, marginBottom: 20 }}>
+                Fast download, verified files, and quick access to the latest release from the marketplace.
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 18 }}>
+                <button
+                  className="btn btn-primary btn-lg"
+                  onClick={handleDownload}
+                  disabled={downloadMutation.isPending}
+                  style={{
+                    width: '100%',
+                    justifyContent: 'center',
+                    borderRadius: 18,
+                    height: 52,
+                    fontWeight: 700,
+                    boxShadow: '0 18px 38px rgba(37,99,235,0.28)',
+                  }}
+                >
+                  <Download size={18} />
+                  {downloadMutation.isPending ? 'Preparing download…' : app?.isFree ? 'Install' : 'Buy & Download'}
+                </button>
+
+                {isAuthenticated && (
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => favoriteMutation.mutate('add')}
+                    disabled={favoriteMutation.isPending}
+                    style={{
+                      width: '100%',
+                      justifyContent: 'center',
+                      borderRadius: 18,
+                      height: 48,
+                      background: 'rgba(255,255,255,0.1)',
+                      color: 'white',
+                      borderColor: 'rgba(255,255,255,0.14)',
+                    }}
+                  >
+                    <Heart size={16} /> Save to favorites
+                  </button>
+                )}
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
+                {keyFacts.map(({ label, value, icon }) => (
+                  <div
+                    key={label}
+                    style={{
+                      padding: 12,
+                      borderRadius: 18,
+                      background: 'rgba(255,255,255,0.08)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'rgba(255,255,255,0.74)', fontSize: 12, marginBottom: 8 }}>
+                      {icon}
+                      {label}
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.5 }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
+      </section>
 
-        {/* Tags */}
-        {app?.tags?.length > 0 && (
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 24 }}>
-            {app.tags.map((t) => (
-              <span key={t.id} className="badge badge-muted">
-                <Tag size={10} /> {t.name}
-              </span>
+      <div className="container" style={{ marginTop: -26, position: 'relative', zIndex: 2 }}>
+        <div style={{ ...appSurfaceStyle, padding: 18, marginBottom: 24 }}>
+          <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                style={{
+                  border: '1px solid',
+                  borderColor: activeTab === tab.id ? 'var(--accent)' : 'var(--border)',
+                  background: activeTab === tab.id ? 'var(--accent-subtle)' : 'var(--bg-card)',
+                  color: activeTab === tab.id ? 'var(--accent)' : 'var(--text-secondary)',
+                  borderRadius: 999,
+                  padding: '11px 18px',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                {tab.label}
+              </button>
             ))}
           </div>
-        )}
-
-        {/* Tabs */}
-        <div className="tabs">
-          {['overview', 'versions', 'reviews'].map((tab) => (
-            <button
-              key={tab}
-              className={`tab ${activeTab === tab ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab)}
-            >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
-            </button>
-          ))}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 32, flexWrap: 'wrap' }}>
-          {/* Main */}
-          <div>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: 26,
+            alignItems: 'start',
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             {activeTab === 'overview' && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>About This App</h2>
-                <p style={{ color: 'var(--text-secondary)', lineHeight: 1.8, whiteSpace: 'pre-wrap', marginBottom: 24 }}>
-                  {app?.description}
-                </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                {screenshots.length > 0 && (
+                  <section style={{ ...appSurfaceStyle, padding: 24 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-end', marginBottom: 16, flexWrap: 'wrap' }}>
+                      <div>
+                        <div style={{ ...sectionTitleStyle, marginBottom: 6 }}>Preview</div>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.7, margin: 0 }}>
+                          A quick visual walkthrough, inspired by the app galleries you see in the Play Store.
+                        </p>
+                      </div>
+                      <span className="badge badge-accent">
+                        <Sparkles size={10} /> {screenshots.length} screenshot{screenshots.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
 
-                {/* Screenshots */}
-                {app?.screenshots?.length > 0 && (
-                  <div style={{ marginBottom: 24 }}>
-                    <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>Screenshots</h3>
-                    <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8 }}>
-                      {app.screenshots.map((url, i) => (
-                        <img
-                          key={i}
-                          src={url}
-                          alt={`Screenshot ${i + 1}`}
-                          style={{ width: 220, height: 140, objectFit: 'cover', borderRadius: 10, flexShrink: 0, border: '1px solid var(--border)' }}
-                        />
+                    <div style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 6 }}>
+                      {screenshots.map((url, index) => (
+                        <div
+                          key={url}
+                          style={{
+                            minWidth: 240,
+                            width: 240,
+                            borderRadius: 26,
+                            overflow: 'hidden',
+                            border: '1px solid var(--border)',
+                            background: 'var(--bg-secondary)',
+                            boxShadow: 'var(--shadow-sm)',
+                          }}
+                        >
+                          <img
+                            src={url}
+                            alt={`Screenshot ${index + 1}`}
+                            style={{ width: '100%', height: 500, objectFit: 'cover', display: 'block' }}
+                          />
+                        </div>
                       ))}
                     </div>
-                  </div>
+                  </section>
                 )}
-              </motion.div>
-            )}
 
-            {activeTab === 'versions' && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Version History</h2>
-                {!versions?.length ? (
-                  <EmptyState icon="📦" title="No versions yet" description="The developer hasn't uploaded a version yet." />
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {versions.map((v, i) => (
-                      <div key={v.id} className="card" style={{ padding: 16 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                          <div>
-                            <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
-                              v{v.version}
-                              {i === 0 && <span className="badge badge-success" style={{ fontSize: 11 }}>Latest</span>}
-                            </div>
-                            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
-                              {new Date(v.releaseDate).toLocaleDateString()}
-                            </div>
-                          </div>
-                          <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{v.fileSize}</div>
+                <section style={{ ...appSurfaceStyle, padding: 28 }}>
+                  <div style={{ ...sectionTitleStyle }}>About This App</div>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: 15, lineHeight: 1.9, whiteSpace: 'pre-wrap', marginBottom: 0 }}>
+                    {app?.description}
+                  </p>
+                </section>
+
+                <section style={{ ...appSurfaceStyle, padding: 28 }}>
+                  <div style={{ ...sectionTitleStyle }}>Why Users Install It</div>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                      gap: 14,
+                    }}
+                  >
+                    {[
+                      { title: 'Safe delivery', desc: 'Verified marketplace listing and downloadable release flow.', icon: <Shield size={18} /> },
+                      { title: 'Fresh updates', desc: latestVersion?.version ? `Latest release is v${latestVersion.version}.` : 'Developers can ship versioned updates here.', icon: <CheckCircle2 size={18} /> },
+                      { title: 'Cross-platform ready', desc: app?.platforms?.length ? app.platforms.join(', ') : 'Works in common environments.', icon: <Globe size={18} /> },
+                    ].map(({ title, desc, icon }) => (
+                      <div
+                        key={title}
+                        style={{
+                          padding: 18,
+                          borderRadius: 20,
+                          background: 'linear-gradient(180deg, var(--bg-card), var(--bg-secondary))',
+                          border: '1px solid var(--border)',
+                        }}
+                      >
+                        <div style={{ width: 42, height: 42, borderRadius: 14, background: 'var(--accent-subtle)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                          {icon}
                         </div>
-                        {v.changelog && (
-                          <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginTop: 10, lineHeight: 1.6 }}>
-                            {v.changelog}
-                          </p>
-                        )}
+                        <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>{title}</div>
+                        <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: 0 }}>{desc}</p>
                       </div>
                     ))}
                   </div>
+                </section>
+
+                {app?.tags?.length > 0 && (
+                  <section style={{ ...appSurfaceStyle, padding: 24 }}>
+                    <div style={{ ...sectionTitleStyle, marginBottom: 14 }}>Tags</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {app.tags.map((tag) => (
+                        <span key={tag.id} className="badge badge-muted" style={{ paddingInline: 12, paddingBlock: 8 }}>
+                          <Tag size={10} /> {tag.name}
+                        </span>
+                      ))}
+                    </div>
+                  </section>
                 )}
-              </motion.div>
+              </div>
+            )}
+
+            {activeTab === 'versions' && (
+              <div>
+                <section style={{ ...appSurfaceStyle, padding: 28 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16, marginBottom: 18, flexWrap: 'wrap' }}>
+                    <div>
+                      <div style={{ ...sectionTitleStyle, marginBottom: 6 }}>Versions</div>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.7, margin: 0 }}>
+                        Browse release history and download any available version of this app.
+                      </p>
+                    </div>
+                    <span className="badge badge-accent">
+                      <Clock3 size={10} /> {versions.length} release{versions.length === 1 ? '' : 's'}
+                    </span>
+                  </div>
+                  {!versions.length ? (
+                    <EmptyState icon="📦" title="No versions yet" description="The developer hasn't uploaded a version yet." />
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                      {versions.map((version, index) => (
+                        <div
+                          key={version.id}
+                          style={{
+                            padding: 20,
+                            borderRadius: 22,
+                            background: index === 0 ? 'linear-gradient(180deg, rgba(37,99,235,0.08), rgba(37,99,235,0.02))' : 'var(--bg-secondary)',
+                            border: '1px solid var(--border)',
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start', marginBottom: 10 }}>
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                <div style={{ fontSize: 18, fontWeight: 800 }}>Version {version.version}</div>
+                                {index === 0 && <span className="badge badge-success">Latest</span>}
+                              </div>
+                              <div style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>
+                                {formatDate(version.releaseDate || version.createdAt) || 'Recently added'}
+                              </div>
+                            </div>
+                            {version.fileSize && (
+                              <span className="badge badge-muted">
+                                <FileArchive size={10} /> {version.fileSize}
+                              </span>
+                            )}
+                          </div>
+
+                          <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.8, marginBottom: 0 }}>
+                            {version.changelog || 'No changelog was included for this release.'}
+                          </p>
+
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
+                            <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+                              {version.supportedOs?.length ? `Supported: ${version.supportedOs.join(', ')}` : 'Standard release package'}
+                            </div>
+                            <button
+                              className="btn btn-primary btn-sm"
+                              onClick={() => handleVersionDownload(version)}
+                              disabled={downloadMutation.isPending}
+                              style={{ borderRadius: 12 }}
+                            >
+                              <Download size={14} /> Download v{version.version}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              </div>
             )}
 
             {activeTab === 'reviews' && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Reviews</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                <section style={{ ...appSurfaceStyle, padding: 28 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 24, alignItems: 'start' }}>
+                    <div>
+                      <div style={{ ...sectionTitleStyle, marginBottom: 6 }}>Ratings & Reviews</div>
+                      <div style={{ fontSize: 54, fontWeight: 900, letterSpacing: '-0.05em', lineHeight: 1, marginBottom: 10 }}>
+                        {app?.averageRating ? Number(app.averageRating).toFixed(1) : '0.0'}
+                      </div>
+                      <div style={{ marginBottom: 8 }}>
+                        <StarRating rating={app?.averageRating || 0} count={app?.reviewCount || 0} />
+                      </div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: 14 }}>
+                        Based on {app?.reviewCount?.toLocaleString() || 0} review{app?.reviewCount === 1 ? '' : 's'}
+                      </div>
+                    </div>
 
-                {/* Write Review */}
+                    <div style={{ display: 'grid', gap: 10 }}>
+                      {[5, 4, 3, 2, 1].map((score) => {
+                        const totalReviews = app?.reviewCount || 0;
+                        const matchingCount = reviews.filter((review) => Number(review.rating) === score).length;
+                        const fill = totalReviews ? `${(matchingCount / totalReviews) * 100}%` : '0%';
+
+                        return (
+                          <div key={score} style={{ display: 'grid', gridTemplateColumns: '36px 1fr 44px', gap: 12, alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, fontWeight: 700 }}>
+                              {score} <Star size={12} style={{ fill: 'var(--warning)', color: 'var(--warning)' }} />
+                            </div>
+                            <div style={{ height: 9, borderRadius: 999, background: 'var(--bg-secondary)', overflow: 'hidden' }}>
+                              <div style={{ width: fill, height: '100%', borderRadius: 999, background: 'linear-gradient(90deg, #f59e0b, #fbbf24)' }} />
+                            </div>
+                            <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'right' }}>{matchingCount}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </section>
+
                 {isAuthenticated && (
-                  <div className="card" style={{ marginBottom: 24 }}>
-                    <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Write a Review</h3>
+                  <section style={{ ...appSurfaceStyle, padding: 28 }}>
+                    <div style={{ ...sectionTitleStyle, marginBottom: 16 }}>Write A Review</div>
                     <form onSubmit={handleReview} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                       <div>
-                        <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 8 }}>Rating</div>
-                        <div style={{ display: 'flex', gap: 4 }}>
-                          {[1,2,3,4,5].map((s) => (
+                        <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 10 }}>Your rating</div>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          {[1, 2, 3, 4, 5].map((score) => (
                             <button
-                              key={s}
+                              key={score}
                               type="button"
-                              onClick={() => setReviewRating(s)}
+                              onClick={() => setReviewRating(score)}
                               style={{
-                                background: 'none', border: 'none', cursor: 'pointer',
-                                fontSize: 24, color: s <= reviewRating ? 'var(--warning)' : 'var(--text-muted)',
-                                transition: 'color 0.15s',
+                                width: 42,
+                                height: 42,
+                                borderRadius: 14,
+                                border: '1px solid',
+                                borderColor: score <= reviewRating ? 'rgba(245,158,11,0.32)' : 'var(--border)',
+                                background: score <= reviewRating ? 'rgba(245,158,11,0.12)' : 'var(--bg-secondary)',
+                                color: score <= reviewRating ? 'var(--warning)' : 'var(--text-muted)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
                               }}
                             >
-                              ★
+                              <Star size={18} style={{ fill: score <= reviewRating ? 'currentColor' : 'none' }} />
                             </button>
                           ))}
                         </div>
                       </div>
+
                       <input
                         type="text"
                         className="form-input"
-                        placeholder="Review title (optional)"
+                        placeholder="Title your review"
                         value={reviewTitle}
-                        onChange={e => setReviewTitle(e.target.value)}
+                        onChange={(e) => setReviewTitle(e.target.value)}
                       />
+
                       <textarea
                         className="form-input form-textarea"
-                        placeholder="Share your experience…"
+                        placeholder="Tell other users what stands out, what works well, and what could improve."
                         value={reviewComment}
-                        onChange={e => setReviewComment(e.target.value)}
+                        onChange={(e) => setReviewComment(e.target.value)}
                         required
+                        style={{ minHeight: 130 }}
                       />
+
                       <button
                         type="submit"
                         className="btn btn-primary"
-                        disabled={reviewMutation.isLoading}
-                        style={{ alignSelf: 'flex-start' }}
+                        disabled={reviewMutation.isPending}
+                        style={{ alignSelf: 'flex-start', borderRadius: 14, minWidth: 170 }}
                       >
-                        {reviewMutation.isLoading ? 'Submitting…' : 'Submit Review'}
+                        {reviewMutation.isPending ? 'Submitting…' : 'Post Review'}
                       </button>
                     </form>
-                  </div>
+                  </section>
                 )}
 
-                {/* Reviews List */}
-                {!reviews?.items?.length ? (
-                  <EmptyState icon="⭐" title="No reviews yet" description="Be the first to review this app!" />
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {reviews.items.map((r) => (
-                      <div key={r.id} className="card" style={{ padding: 16 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                          <div>
-                            <div style={{ fontWeight: 600, fontSize: 15 }}>{r.title || 'Review'}</div>
-                            <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                              by {r.user?.name || 'Anonymous'} · {new Date(r.createdAt).toLocaleDateString()}
+                <section style={{ ...appSurfaceStyle, padding: 28 }}>
+                  {!reviews.length ? (
+                    <EmptyState icon="⭐" title="No reviews yet" description="Be the first to review this app!" />
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                      {reviews.map((review) => (
+                        <div
+                          key={review.id}
+                          style={{
+                            padding: 20,
+                            borderRadius: 22,
+                            border: '1px solid var(--border)',
+                            background: 'linear-gradient(180deg, var(--bg-card), var(--bg-secondary))',
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, marginBottom: 10, flexWrap: 'wrap' }}>
+                            <div>
+                              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 5 }}>{review.title || 'Review'}</div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', color: 'var(--text-muted)', fontSize: 13 }}>
+                                <span>{review.user?.name || user?.name || 'Anonymous'}</span>
+                                <span>•</span>
+                                <span>{formatDate(review.createdAt)}</span>
+                              </div>
                             </div>
+                            <StarRating rating={review.rating} size={14} />
                           </div>
-                          <StarRating rating={r.rating} size={14} />
+                          <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.8, marginBottom: 0 }}>
+                            {review.comment}
+                          </p>
                         </div>
-                        {r.comment && (
-                          <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{r.comment}</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </motion.div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              </div>
             )}
           </div>
 
-          {/* Sidebar */}
-          <aside>
-            <div className="card" style={{ marginBottom: 16 }}>
-              <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 14, color: 'var(--text-secondary)' }}>App Details</h3>
-              {[
-                { label: 'Category', value: app?.category?.name },
-                { label: 'Type', value: app?.contentType },
-                { label: 'Platforms', value: app?.platforms?.join(', ') },
-                { label: 'File Size', value: app?.fileSize },
-                { label: 'License', value: app?.licenseType },
-                { label: 'Last Updated', value: app?.lastUpdatedAt && new Date(app.lastUpdatedAt).toLocaleDateString() },
-                { label: 'Published', value: app?.publishedAt && new Date(app.publishedAt).toLocaleDateString() },
-              ].filter(d => d.value).map(({ label, value }) => (
-                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8 }}>
-                  <span style={{ color: 'var(--text-muted)' }}>{label}</span>
-                  <span style={{ color: 'var(--text-primary)', textAlign: 'right', maxWidth: 160 }}>{value}</span>
-                </div>
-              ))}
-            </div>
+          <aside style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <section style={{ ...appSurfaceStyle, padding: 24 }}>
+              <div style={{ ...sectionTitleStyle, fontSize: 20, marginBottom: 16 }}>App Info</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {detailRows.map((row) => (
+                  <div key={row.label} style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 12, alignItems: 'start' }}>
+                    <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>{row.label}</div>
+                    <div style={{ color: 'var(--text-primary)', fontSize: 14, fontWeight: 600, lineHeight: 1.6 }}>{row.value}</div>
+                  </div>
+                ))}
+              </div>
+            </section>
 
-            <div className="card">
-              <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 14, color: 'var(--text-secondary)' }}>Stats</h3>
-              {[
-                { label: 'Downloads', value: app?.downloadCount?.toLocaleString() || '0' },
-                { label: 'Reviews', value: app?.reviewCount?.toLocaleString() || '0' },
-                { label: 'Avg Rating', value: app?.averageRating ? `${app.averageRating.toFixed(1)} / 5.0` : 'N/A' },
-                { label: 'Favorites', value: app?.favoriteCount?.toLocaleString() || '0' },
-              ].map(({ label, value }) => (
-                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8 }}>
-                  <span style={{ color: 'var(--text-muted)' }}>{label}</span>
-                  <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{value}</span>
+            <section style={{ ...appSurfaceStyle, padding: 24 }}>
+              <div style={{ ...sectionTitleStyle, fontSize: 20, marginBottom: 16 }}>Marketplace Signals</div>
+              <div style={{ display: 'grid', gap: 12 }}>
+                {[
+                  { label: 'Favorites', value: app?.favoriteCount?.toLocaleString() || '0' },
+                  { label: 'Reviews', value: app?.reviewCount?.toLocaleString() || '0' },
+                  { label: 'Average rating', value: app?.averageRating ? `${Number(app.averageRating).toFixed(1)} / 5` : 'Not rated yet' },
+                  { label: 'Latest version', value: latestVersion?.version ? `v${latestVersion.version}` : 'Coming soon' },
+                ].map((row) => (
+                  <div
+                    key={row.label}
+                    style={{
+                      padding: '14px 16px',
+                      borderRadius: 18,
+                      border: '1px solid var(--border)',
+                      background: 'var(--bg-secondary)',
+                    }}
+                  >
+                    <div style={{ color: 'var(--text-muted)', fontSize: 12, marginBottom: 4 }}>{row.label}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700 }}>{row.value}</div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section
+              style={{
+                ...appSurfaceStyle,
+                padding: 24,
+                background: 'linear-gradient(180deg, rgba(37,99,235,0.06), rgba(37,99,235,0.02))',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 12, background: 'var(--accent-subtle)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Shield size={18} />
                 </div>
-              ))}
-            </div>
+                <div style={{ fontSize: 16, fontWeight: 800 }}>Safety & Quality</div>
+              </div>
+              <p style={{ color: 'var(--text-secondary)', lineHeight: 1.75, fontSize: 14, marginBottom: 0 }}>
+                This listing follows the same polished storefront structure users expect from major app marketplaces: clear metadata, visible ratings, version history, and download-focused actions.
+              </p>
+            </section>
           </aside>
         </div>
       </div>

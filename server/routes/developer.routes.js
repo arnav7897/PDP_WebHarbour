@@ -4,6 +4,7 @@ const { requireRole } = require('../middleware/role.middleware');
 const {
   developerOverviewHandler,
   developerAppAnalyticsHandler,
+  topDevelopersAnalyticsHandler,
 } = require('../controllers/developer.controller');
 
 const router = express.Router();
@@ -32,6 +33,41 @@ const router = express.Router();
  *         $ref: '#/components/responses/Conflict'
  */
 router.get('/analytics/overview', auth, requireRole('DEVELOPER'), developerOverviewHandler);
+
+/**
+ * @openapi
+ * /developer/analytics/top-developers:
+ *   get:
+ *     tags: [Developer]
+ *     summary: Get top developers leaderboard
+ *     description: Returns an authenticated leaderboard of top developers using aggregate app publishing and engagement metrics.
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: window
+ *         schema:
+ *           oneOf:
+ *             - type: string
+ *               enum: ['7', '30', '90', '365', 'all']
+ *       - in: query
+ *         name: sort
+ *         schema:
+ *           type: string
+ *           enum: [overall, downloads, rating, reviews, favorites, apps, versions]
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Top developers leaderboard
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ */
+router.get('/analytics/top-developers', auth, requireRole('USER'), topDevelopersAnalyticsHandler);
 
 /**
  * @openapi

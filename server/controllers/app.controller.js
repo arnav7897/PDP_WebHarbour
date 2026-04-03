@@ -6,6 +6,7 @@ const {
   updateAppMedia,
   publishApp,
   createAppVersion,
+  updateAppVersion,
   listAppVersions,
   getVersionDownloadInfo,
 } = require('../services/app.service');
@@ -57,7 +58,7 @@ const getAppByIdHandler = async (req, res, next) => {
 
 const updateAppHandler = async (req, res, next) => {
   try {
-    const app = await updateApp({ appId: req.params.id, userId: req.user.id, body: req.body });
+    const app = await updateApp({ appId: req.params.id, userId: req.user.id, actor: req.user, body: req.body });
     return res.json(app);
   } catch (err) {
     return next(err);
@@ -169,9 +170,25 @@ const createAppVersionHandler = async (req, res, next) => {
     const version = await createAppVersion({
       appId: req.params.id,
       userId: req.user.id,
+      actor: req.user,
       body: req.body,
     });
     return res.status(201).json(version);
+  } catch (err) {
+    return next(err);
+  }
+};
+
+const updateAppVersionHandler = async (req, res, next) => {
+  try {
+    const version = await updateAppVersion({
+      appId: req.params.id,
+      versionId: req.params.versionId,
+      userId: req.user.id,
+      actor: req.user,
+      body: req.body,
+    });
+    return res.json(version);
   } catch (err) {
     return next(err);
   }
@@ -214,6 +231,7 @@ const uploadAppVersionHandler = async (req, res, next) => {
     const created = await createAppVersion({
       appId: req.params.id,
       userId: req.user.id,
+      actor: req.user,
       body: {
         version,
         changelog,
@@ -387,6 +405,7 @@ module.exports = {
   publishAppHandler,
   submitAppHandler,
   createAppVersionHandler,
+  updateAppVersionHandler,
   listAppVersionsHandler,
   uploadAppVersionHandler,
   uploadAppAssetHandler,

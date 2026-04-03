@@ -1,15 +1,18 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion, useInView, useAnimation } from 'framer-motion';
+import { motion, useInView } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import api from '../lib/api';
 import AppCard from '../components/apps/AppCard';
 import { LoadingGrid, EmptyState } from '../components/ui';
+import { useAuthStore } from '../store/authStore';
 import {
   Search, ArrowRight, Zap, Shield, Package, Star, TrendingUp,
-  Users, Download, CheckCircle, Anchor, Code2, Globe, BarChart3,
-  Layers, Lock, Rocket, ChevronRight, Sparkles
+  Users, Download, Anchor, Code2, Globe, BarChart3,
+  Layers, Lock, Rocket, Sparkles, Trophy
 } from 'lucide-react';
+
+void motion;
 
 /* ── Scroll-in animation wrapper ── */
 function Reveal({ children, delay = 0, direction = 'up', width = "100%" }) {
@@ -78,9 +81,119 @@ const STATS = [
   { value: '100K+', label: 'Downloads', icon: Download },
 ];
 
+const formatCompactCount = (value = 0) => {
+  if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+  if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+  return String(value);
+};
+
+function LeaderboardFeatureCard({ leader, featured = false }) {
+  return (
+    <div
+      style={{
+        position: 'relative',
+        background: featured
+          ? 'linear-gradient(135deg, rgba(30,58,138,0.2), rgba(14,165,233,0.14), rgba(249,115,22,0.12))'
+          : 'var(--bg-card)',
+        border: '1px solid',
+        borderColor: featured ? 'rgba(37,99,235,0.22)' : 'var(--border)',
+        borderRadius: 28,
+        padding: featured ? 28 : 22,
+        boxShadow: featured ? '0 24px 48px rgba(37,99,235,0.12)' : 'var(--shadow-sm)',
+        overflow: 'hidden',
+        minHeight: '100%',
+      }}
+    >
+      <div
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 8,
+          borderRadius: 999,
+          padding: '7px 12px',
+          background: featured ? 'rgba(37,99,235,0.14)' : 'var(--bg-secondary)',
+          color: featured ? 'var(--accent)' : 'var(--text-secondary)',
+          fontSize: 12,
+          fontWeight: 800,
+          marginBottom: 18,
+        }}
+      >
+        <Trophy size={13} />
+        Rank #{leader.rank}
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
+        <div
+          style={{
+            width: featured ? 62 : 52,
+            height: featured ? 62 : 52,
+            borderRadius: 18,
+            background: 'linear-gradient(135deg, #1d4ed8, #38bdf8)',
+            color: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: featured ? 24 : 20,
+            fontWeight: 900,
+            flexShrink: 0,
+            overflow: 'hidden',
+          }}
+        >
+          {leader.avatarUrl ? (
+            <img src={leader.avatarUrl} alt={leader.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+            (leader.name || '?').slice(0, 1).toUpperCase()
+          )}
+        </div>
+
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+            <h3 style={{ margin: 0, fontFamily: "'Space Grotesk'", fontSize: featured ? 24 : 18, fontWeight: 800, letterSpacing: '-0.03em' }}>
+              {leader.name}
+            </h3>
+            {leader.isVerified && <span className="badge badge-accent">Verified</span>}
+          </div>
+          <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+            {leader.companyName || leader.username || 'Independent developer'}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12, marginBottom: 18 }}>
+        <div style={{ padding: '12px 14px', borderRadius: 16, background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
+          <div style={{ color: 'var(--text-muted)', fontSize: 11, marginBottom: 6 }}>Score</div>
+          <div style={{ fontSize: featured ? 24 : 20, fontWeight: 900, letterSpacing: '-0.04em' }}>{leader.score}</div>
+        </div>
+        <div style={{ padding: '12px 14px', borderRadius: 16, background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
+          <div style={{ color: 'var(--text-muted)', fontSize: 11, marginBottom: 6 }}>Rating</div>
+          <div style={{ fontSize: featured ? 24 : 20, fontWeight: 900, letterSpacing: '-0.04em' }}>{leader.averageRating.toFixed(1)}</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+        <span className="badge badge-muted">{formatCompactCount(leader.totalDownloads)} downloads</span>
+        <span className="badge badge-muted">{formatCompactCount(leader.totalReviews)} reviews</span>
+        <span className="badge badge-muted">{leader.publishedApps} apps</span>
+        <span className="badge badge-muted">{leader.totalVersions} versions</span>
+      </div>
+
+      {leader.topApp && (
+        <div style={{ padding: '14px 16px', borderRadius: 18, background: 'rgba(37,99,235,0.06)', border: '1px solid rgba(37,99,235,0.12)' }}>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Top app right now</div>
+          <div style={{ fontWeight: 800, marginBottom: 4 }}>{leader.topApp.name}</div>
+          <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
+            {formatCompactCount(leader.topApp.totalDownloads)} downloads • {leader.topApp.averageRating.toFixed(1)} rating
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function HomePage() {
   const [search, setSearch] = useState('');
   const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuthStore();
 
   // Mouse tracking logic for Hero Glow
   const heroRef = useRef(null);
@@ -98,7 +211,20 @@ export default function HomePage() {
     queryFn: () => api.get('/apps?limit=6&status=PUBLISHED').then(r => r.data),
   });
 
+  const leaderboardQuery = useQuery({
+    queryKey: ['developer', 'analytics', 'top-developers', 'home'],
+    queryFn: () => api.get('/developer/analytics/top-developers?window=30&sort=overall&limit=3').then((r) => r.data),
+    enabled: isAuthenticated,
+    staleTime: 1000 * 60 * 5,
+  });
+
   const apps = featuredData?.items || [];
+  const topDevelopers = leaderboardQuery.data?.leaders || [];
+  const leaderboardCta = user?.role === 'ADMIN'
+    ? { to: '/admin?view=dashboard', label: 'Full Analytics' }
+    : user?.role === 'DEVELOPER'
+      ? { to: '/developer', label: 'Developer Dashboard' }
+      : { to: '/marketplace', label: 'Explore Marketplace' };
   const handleSearch = (e) => {
     e.preventDefault();
     if(search.trim()) navigate(`/marketplace?q=${encodeURIComponent(search.trim())}`);
@@ -284,6 +410,61 @@ export default function HomePage() {
         </div>
       </section>
 
+      {isAuthenticated && (
+        <section style={{ padding: '90px 0 40px', background: 'var(--bg-primary)' }}>
+          <div className="container">
+            <Reveal>
+              <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 24, flexWrap: 'wrap', marginBottom: 32 }}>
+                <div style={{ maxWidth: 680 }}>
+                  <div className="section-header-pill" style={{ marginBottom: 16 }}>
+                    <TrendingUp size={11} /> Developer Leaderboard
+                  </div>
+                  <h2 className="section-title" style={{ marginBottom: 16, fontSize: 'clamp(30px, 4vw, 46px)' }}>
+                    The developers building the most momentum right now.
+                  </h2>
+                  <p style={{ fontSize: 17, color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: 0 }}>
+                    This ranking blends rating quality, downloads, reviews, favorites, published apps, and release cadence over the last 30 days.
+                  </p>
+                </div>
+                <Link to={leaderboardCta.to} className="btn btn-secondary" style={{ borderRadius: 100, padding: '12px 24px' }}>
+                  {leaderboardCta.label} <ArrowRight size={16} style={{ marginLeft: 8 }} />
+                </Link>
+              </div>
+            </Reveal>
+
+            {leaderboardQuery.isLoading ? (
+              <LoadingGrid count={3} />
+            ) : leaderboardQuery.isError ? (
+              <EmptyState
+                icon="📈"
+                title="Leaderboard unavailable"
+                description="We couldn't load the top developers right now. Try refreshing in a moment."
+              />
+            ) : !topDevelopers.length ? (
+              <EmptyState
+                icon="🏆"
+                title="No developer rankings yet"
+                description="Once published apps start collecting downloads and reviews, the leaderboard will appear here."
+              />
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24, alignItems: 'stretch' }}>
+                <Reveal width="100%">
+                  <LeaderboardFeatureCard leader={topDevelopers[0]} featured />
+                </Reveal>
+
+                <div style={{ display: 'grid', gap: 18 }}>
+                  {topDevelopers.slice(1).map((leader, index) => (
+                    <Reveal key={leader.userId || leader.developerId} delay={0.08 * (index + 1)} width="100%">
+                      <LeaderboardFeatureCard leader={leader} />
+                    </Reveal>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
       {/* ═══════════ TRUSTED MARQUEE ═══════════ */}
       <section style={{ padding: '32px 0 40px', borderBottom: '1px solid var(--border)', background: 'var(--bg-primary)' }}>
         <p style={{ textAlign: 'center', fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: '24px',textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -340,9 +521,10 @@ export default function HomePage() {
               animate="visible"
               variants={{ visible: { transition: { staggerChildren: 0.1 } }, hidden: {} }}
             >
-              {apps.map((app, i) => (
+              {apps.map((app) => (
                 <motion.div 
                   key={app.id} 
+                  style={{ height: '100%' }}
                   variants={{ hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0 } }}
                   transition={{ ease: [0.22, 1, 0.36, 1], duration: 0.8 }}
                 >
@@ -372,7 +554,7 @@ export default function HomePage() {
           </Reveal>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24, position: 'relative', zIndex: 10 }}>
-            {FEATURES.map(({ icon: Icon, title, desc, color, bg }, i) => (
+            {FEATURES.map(({ icon: Icon, title, desc, color }, i) => (
               <Reveal key={title} delay={i * 0.1}>
                 <div className="bento-card-advanced">
                   {/* Glowing dynamic border layer */}
@@ -385,7 +567,7 @@ export default function HomePage() {
                       background: 'var(--bg-secondary)',
                       boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1)'
                     }}>
-                      <Icon size={24} style={{ color }} />
+                      {React.createElement(Icon, { size: 24, style: { color } })}
                     </div>
                     <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{title}</h3>
                     <p style={{ fontSize: 15, color: 'var(--text-secondary)', lineHeight: 1.6, fontWeight: 400 }}>{desc}</p>

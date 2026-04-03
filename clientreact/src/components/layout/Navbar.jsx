@@ -5,6 +5,8 @@ import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
 import { Anchor, Search, Bell, ChevronDown, User, Settings, LogOut, Package, Shield, Heart, Code2, X, Menu, Moon, Sun } from 'lucide-react';
 
+void motion;
+
 function UserMenu({ user, onLogout }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -77,8 +79,8 @@ function UserMenu({ user, onLogout }) {
               </Link>
             )}
             {user?.role === 'ADMIN' && (
-              <Link to="/admin" className="dropdown-item" onClick={() => setOpen(false)}>
-                <Shield size={14} /> Admin Panel
+              <Link to="/admin?view=dashboard" className="dropdown-item" onClick={() => setOpen(false)}>
+                <Shield size={14} /> Admin Dashboard
               </Link>
             )}
             <div className="dropdown-separator" />
@@ -118,6 +120,8 @@ function MobileMenu({ open, onClose, user, onLogout }) {
             {[
               { to: '/home', label: 'Home' },
               { to: '/marketplace', label: 'Marketplace' },
+              ...(user?.role === 'DEVELOPER' || user?.role === 'ADMIN' ? [{ to: '/developer', label: 'Developer Dashboard' }] : []),
+              ...(user?.role === 'ADMIN' ? [{ to: '/admin?view=dashboard', label: 'Admin Dashboard' }] : []),
             ].map(({ to, label }) => (
               <Link key={to} to={to} onClick={onClose} style={{
                 display: 'block', padding: '11px 14px', borderRadius: 10,
@@ -188,7 +192,14 @@ export default function Navbar() {
             {(user?.role === 'DEVELOPER' || user?.role === 'ADMIN') && (
               <li>
                 <NavLink to="/developer" className={({ isActive }) => `navbar-link ${isActive ? 'active' : ''}`}>
-                  Dev Dashboard
+                  Developer Dashboard
+                </NavLink>
+              </li>
+            )}
+            {user?.role === 'ADMIN' && (
+              <li>
+                <NavLink to="/admin" className={({ isActive }) => `navbar-link ${isActive ? 'active' : ''}`}>
+                  Admin Dashboard
                 </NavLink>
               </li>
             )}

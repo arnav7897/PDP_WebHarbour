@@ -4,7 +4,9 @@ import { motion } from 'framer-motion';
 import { useAuthStore } from '../../store/authStore';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../lib/api';
-import { ArrowUpRight, Star, Download, Heart, Tag } from 'lucide-react';
+import { ArrowUpRight, Star, Download, Heart } from 'lucide-react';
+
+void motion;
 
 const GRADIENTS = [
   'linear-gradient(135deg, #1E3A5F 0%, #2563EB 100%)',
@@ -52,10 +54,15 @@ export default function AppCard({ app }) {
   return (
     <motion.div
       className="app-card-premium"
+      style={{ height: '100%' }}
       whileHover={{ y: -4 }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
     >
-      <Link to={`/apps/${app.id}`} style={{ display: 'block', textDecoration: 'none' }}>
+      <Link
+        to={`/apps/${app.id}`}
+        className="app-card-link"
+        style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column', height: '100%' }}
+      >
         {/* Banner */}
         <div className="app-card-banner-area" style={{ background: gradient }}>
           <motion.div
@@ -78,7 +85,7 @@ export default function AppCard({ app }) {
         </div>
 
         {/* Card body */}
-        <div className="app-card-body-premium">
+        <div className="app-card-body-premium" style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
           <div className="app-card-top-row">
             {/* Icon or fallback */}
             <div className="app-card-icon-wrap">
@@ -96,7 +103,9 @@ export default function AppCard({ app }) {
             </div>
           </div>
 
-          <p className="app-card-desc">{app.description || 'No description provided.'}</p>
+          <p className="app-card-desc" style={{ minHeight: 'calc(1.6em * 2)' }}>
+            {app.description || 'No description provided.'}
+          </p>
 
           <div className="app-card-stats-row">
             {rating && (
@@ -119,7 +128,7 @@ export default function AppCard({ app }) {
           </div>
 
           {tags.length > 0 && (
-            <div className="app-card-tags">
+            <div className="app-card-tags" style={{ minHeight: 28, alignContent: 'flex-start' }}>
               {tags.map(t => (
                 <span key={t.id || t} className="app-card-tag">#{t.name || t}</span>
               ))}

@@ -77,6 +77,34 @@ const normalizeScreenshotUrls = (screenshots) => {
     .filter(Boolean);
 };
 
+const normalizePlatformList = (input, fieldName = 'platforms') => {
+  if (input === undefined) return undefined;
+  if (input === null) return [];
+
+  let values = input;
+  if (typeof input === 'string') {
+    values = input.split(',').map((part) => part.trim()).filter(Boolean);
+  }
+
+  if (!Array.isArray(values)) {
+    throw makeHttpError(`${fieldName} must be an array of supported platforms`, 400);
+  }
+
+  const normalized = values.map((item) => {
+    const upper = String(item || '').toUpperCase().trim();
+    if (upper === 'ANDROID') return 'MOBILE_ANDROID';
+    if (upper === 'IOS') return 'MOBILE_IOS';
+    return upper;
+  });
+
+  const invalidPlatform = normalized.find((value) => !PLATFORMS.includes(value));
+  if (invalidPlatform) {
+    throw makeHttpError(`${fieldName} contains invalid value: ${invalidPlatform}`, 400);
+  }
+
+  return [...new Set(normalized)];
+};
+
 const ensureTagsExist = async (tagIds = []) => {
   if (!tagIds.length) return;
   const existing = await prisma.tag.findMany({
@@ -186,6 +214,27 @@ const assertOwnership = async (appId, userId) => {
   }
 
   return app;
+};
+
+const assertManageAccess = async (appId, actor = {}) => {
+  const parsedUserId = parseInteger(actor.id);
+  if (actor.role === 'ADMIN') {
+    const app = await prisma.app.findUnique({
+      where: { id: appId },
+      include: {
+        developer: {
+          select: {
+            userId: true,
+          },
+        },
+      },
+    });
+
+    if (!app) throw makeHttpError('App not found', 404);
+    return app;
+  }
+
+  return assertOwnership(appId, parsedUserId);
 };
 
 const createApp = async ({ userId, body }) => {
@@ -317,17 +366,21 @@ const getAppById = async (appId) => {
   return mapAppResult(app);
 };
 
-const updateApp = async ({ appId, userId, body }) => {
+const updateApp = async ({ appId, userId, actor, body }) => {
   const parsedId = parseInteger(appId);
   if (!parsedId) throw makeHttpError('Invalid app id', 400);
 
-  await assertOwnership(parsedId, userId);
+  const app = await assertManageAccess(parsedId, actor || { id: userId });
   const input = body || {};
 
   const data = {};
   if (input.name !== undefined) {
-    if (!String(input.name).trim()) throw makeHttpError('name cannot be empty', 400);
-    data.name = String(input.name).trim();
+    const name = String(input.name).trim();
+    if (!name) throw makeHttpError('name cannot be empty', 400);
+    data.name = name;
+    if (name !== app.name) {
+      data.slug = await ensureUniqueSlug(name);
+    }
   }
   if (input.description !== undefined) {
     if (!String(input.description).trim()) throw makeHttpError('description cannot be empty', 400);
@@ -345,6 +398,45 @@ const updateApp = async ({ appId, userId, body }) => {
   }
   if (input.bannerUrl !== undefined) {
     data.bannerUrl = input.bannerUrl ? String(input.bannerUrl).trim() : null;
+  }
+  if (input.isFree !== undefined) {
+    data.isFree = Boolean(input.isFree);
+  }
+  if (input.price !== undefined) {
+    if (input.price === null || input.price === '') {
+      data.price = null;
+    } else {
+      const parsedPrice = Number(input.price);
+      if (Number.isNaN(parsedPrice) || parsedPrice < 0) {
+        throw makeHttpError('price must be a non-negative number', 400);
+      }
+      data.price = parsedPrice;
+    }
+  }
+  if (input.contentType !== undefined) {
+    const contentType = String(input.contentType || '').toUpperCase().trim();
+    if (!contentType) throw makeHttpError('contentType cannot be empty', 400);
+    data.contentType = contentType;
+  }
+  if (input.licenseType !== undefined) {
+    const value = String(input.licenseType || '').trim();
+    data.licenseType = value || null;
+  }
+  if (input.ageRating !== undefined) {
+    const value = String(input.ageRating || '').trim();
+    data.ageRating = value || null;
+  }
+  if (input.fileSize !== undefined) {
+    const value = String(input.fileSize || '').trim();
+    data.fileSize = value || null;
+  }
+  if (input.systemRequirements !== undefined) {
+    const value = String(input.systemRequirements || '').trim();
+    data.systemRequirements = value || null;
+  }
+  const platforms = normalizePlatformList(input.platforms);
+  if (platforms !== undefined) {
+    data.platforms = platforms.length ? platforms : ['WEB'];
   }
 
   const screenshotUrls = normalizeScreenshotUrls(input.screenshots);
@@ -433,7 +525,7 @@ const publishApp = async ({ appId, userId }) => {
   );
 };
 
-const createAppVersion = async ({ appId, userId, body }) => {
+const createAppVersion = async ({ appId, userId, actor, body }) => {
   const parsedAppId = parseInteger(appId);
   if (!parsedAppId) throw makeHttpError('Invalid app id', 400);
 
@@ -456,28 +548,8 @@ const createAppVersion = async ({ appId, userId, body }) => {
     throw makeHttpError('version and downloadUrl are required', 400);
   }
 
-  const app = await assertOwnership(parsedAppId, userId);
-  const parsePlatformList = (input) => {
-    if (!input) return [];
-    if (Array.isArray(input)) return input;
-    if (typeof input === 'string') {
-      return input.split(',').map((part) => part.trim()).filter(Boolean);
-    }
-    return [];
-  };
-
-  const platformInput = parsePlatformList(supportedOs).length ? parsePlatformList(supportedOs) : app.platforms;
-  const normalizedSupportedOs = (platformInput || []).map((item) => {
-    const upper = String(item || '').toUpperCase().trim();
-    if (upper === 'ANDROID') return 'MOBILE_ANDROID';
-    if (upper === 'IOS') return 'MOBILE_IOS';
-    return upper;
-  });
-
-  const invalidPlatform = normalizedSupportedOs.find((value) => !PLATFORMS.includes(value));
-  if (invalidPlatform) {
-    throw makeHttpError(`supportedOs contains invalid value: ${invalidPlatform}`, 400);
-  }
+  const app = await assertManageAccess(parsedAppId, actor || { id: userId });
+  const normalizedSupportedOs = normalizePlatformList(supportedOs, 'supportedOs') || app.platforms;
 
   try {
     return await prisma.$transaction(async (tx) => {
@@ -525,6 +597,110 @@ const createAppVersion = async ({ appId, userId, body }) => {
       });
 
       return created;
+    });
+  } catch (err) {
+    if (err.code === 'P2002') {
+      throw makeHttpError('This version already exists for the app', 409);
+    }
+    throw err;
+  }
+};
+
+const updateAppVersion = async ({ appId, versionId, userId, actor, body }) => {
+  const parsedAppId = parseInteger(appId);
+  if (!parsedAppId) throw makeHttpError('Invalid app id', 400);
+
+  const parsedVersionId = parseInteger(versionId);
+  if (!parsedVersionId) throw makeHttpError('Invalid version id', 400);
+
+  const app = await assertManageAccess(parsedAppId, actor || { id: userId });
+  const input = body || {};
+
+  const existingVersion = await prisma.appVersion.findFirst({
+    where: { id: parsedVersionId, appId: parsedAppId },
+  });
+
+  if (!existingVersion) {
+    throw makeHttpError('Version not found', 404);
+  }
+
+  const data = {};
+
+  if (input.version !== undefined) {
+    const version = String(input.version || '').trim();
+    if (!version) throw makeHttpError('version cannot be empty', 400);
+    data.version = version;
+  }
+
+  if (input.changelog !== undefined) {
+    const value = String(input.changelog || '').trim();
+    data.changelog = value || null;
+  }
+
+  if (input.downloadUrl !== undefined) {
+    const value = String(input.downloadUrl || '').trim();
+    if (!value) throw makeHttpError('downloadUrl cannot be empty', 400);
+    data.downloadUrl = value;
+  }
+
+  if (input.downloadFilename !== undefined) {
+    const value = String(input.downloadFilename || '').trim();
+    data.downloadFilename = value || null;
+  }
+
+  if (input.fileSize !== undefined) {
+    const value = String(input.fileSize || '').trim();
+    data.fileSize = value || '0 MB';
+  }
+
+  if (input.downloadPublicId !== undefined) {
+    const value = String(input.downloadPublicId || '').trim();
+    data.downloadPublicId = value || null;
+  }
+
+  if (input.downloadFormat !== undefined) {
+    const value = String(input.downloadFormat || '').trim();
+    data.downloadFormat = value || null;
+  }
+
+  if (input.storageProvider !== undefined) {
+    const value = String(input.storageProvider || '').trim();
+    data.storageProvider = value || null;
+  }
+
+  if (input.storageBucket !== undefined) {
+    const value = String(input.storageBucket || '').trim();
+    data.storageBucket = value || null;
+  }
+
+  if (input.storageKey !== undefined) {
+    const value = String(input.storageKey || '').trim();
+    data.storageKey = value || null;
+  }
+
+  if (input.storageObjectUrl !== undefined) {
+    const value = String(input.storageObjectUrl || '').trim();
+    data.storageObjectUrl = value || null;
+  }
+
+  if (input.mimeType !== undefined) {
+    const value = String(input.mimeType || '').trim();
+    data.mimeType = value || null;
+  }
+
+  const normalizedSupportedOs = normalizePlatformList(input.supportedOs, 'supportedOs');
+  if (normalizedSupportedOs !== undefined) {
+    data.supportedOs = normalizedSupportedOs.length ? normalizedSupportedOs : app.platforms;
+  }
+
+  if (!Object.keys(data).length) {
+    throw makeHttpError('Provide at least one field to update for the version', 400);
+  }
+
+  try {
+    return await prisma.appVersion.update({
+      where: { id: parsedVersionId },
+      data,
     });
   } catch (err) {
     if (err.code === 'P2002') {
@@ -653,6 +829,7 @@ module.exports = {
   updateAppMedia,
   publishApp,
   createAppVersion,
+  updateAppVersion,
   listAppVersions,
   getVersionDownloadInfo,
 };
