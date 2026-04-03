@@ -1,21 +1,20 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import api from '../lib/api';
 import AppCard from '../components/apps/AppCard';
 import { LoadingGrid, EmptyState } from '../components/ui';
 import { Heart, ArrowRight, Sparkles } from 'lucide-react';
 
 export default function FavoritesPage() {
-  const queryClient = useQueryClient();
-
   const { data, isLoading } = useQuery({
     queryKey: ['favorites'],
-    queryFn: () => api.get('/apps/favorites').then(r => r.data),
+    queryFn: () => api.get('/users/me/favorites').then(r => r.data),
   });
 
-  const apps = data?.items || data || [];
+  const entries = Array.isArray(data) ? data : (data?.items || []);
+  const apps = entries.map((entry) => entry.app).filter(Boolean);
 
   return (
     <div style={{ background: 'var(--bg-primary)', minHeight: '100vh', padding: '48px 0 80px' }}>

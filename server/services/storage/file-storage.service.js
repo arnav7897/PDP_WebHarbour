@@ -7,6 +7,7 @@ const {
 const { createHttpError } = require('../../middleware/error.middleware');
 const localProvider = require('./local-storage.provider');
 const s3Provider = require('./s3-storage.provider');
+const cloudinaryProvider = require('./cloudinary-storage.provider');
 
 const NON_IMAGE_ALLOWED_EXTENSIONS = new Set([
   '.pdf', '.doc', '.docx', '.txt', '.md', '.csv', '.json',
@@ -16,6 +17,7 @@ const NON_IMAGE_ALLOWED_EXTENSIONS = new Set([
 const providerRegistry = {
   local: localProvider,
   s3: s3Provider,
+  cloudinary: cloudinaryProvider,
 };
 
 const storageProviderName = () => {
@@ -64,6 +66,8 @@ const storeFile = async ({ tempPath, filename, mimeType, category, appId }) => {
     storageObjectUrl: result.url || null,
     mimeType: result.mimeType || mimeType || 'application/octet-stream',
     byteSize: result.byteSize || 0,
+    downloadPublicId: result.publicId || null,
+    downloadFormat: result.format || null,
   };
 };
 

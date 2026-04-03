@@ -40,8 +40,8 @@ npm test
 - `REFRESH_TOKEN_EXPIRES_IN` (default: `7d`)
 - `PASSWORD_RESET_TOKEN_EXPIRES_IN` (default: `15m`)
 - `AUTH_EXPOSE_DEBUG_TOKENS` (default: `true` in non-production)
-- `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` (required for image uploads)
-- `FILE_STORAGE_PROVIDER` (`s3` or `local`)
+- `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` (required for image uploads and Cloudinary file storage)
+- `FILE_STORAGE_PROVIDER` (`s3`, `local`, or `cloudinary`)
 - `FILE_STORAGE_REGION`
 - `FILE_STORAGE_BUCKET`
 - `FILE_STORAGE_ENDPOINT`

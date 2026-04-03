@@ -98,6 +98,12 @@ export default function AppDetailPage() {
     enabled: !!id,
   });
 
+  const { data: favoritesResponse } = useQuery({
+    queryKey: ['favorites'],
+    queryFn: () => api.get('/users/me/favorites').then((r) => r.data),
+    enabled: isAuthenticated,
+  });
+
   const downloadMutation = useMutation({
     mutationFn: (versionId) => api.post(`/apps/${id}/download`, versionId ? { versionId } : {}),
     onSuccess: () => {
@@ -112,9 +118,10 @@ export default function AppDetailPage() {
       action === 'add'
         ? api.post(`/apps/${id}/favorite`)
         : api.delete(`/apps/${id}/favorite`),
-    onSuccess: () => {
-      toast.success('Updated favorites!');
+    onSuccess: (_, action) => {
+      toast.success(action === 'add' ? 'Added to favorites!' : 'Removed from favorites.');
       queryClient.invalidateQueries({ queryKey: ['app', id] });
+      queryClient.invalidateQueries({ queryKey: ['favorites'] });
     },
     onError: (err) => toast.error(err.response?.data?.error?.message || 'Action failed'),
   });
@@ -150,6 +157,16 @@ export default function AppDetailPage() {
     downloadMutation.mutate(version.id);
   };
 
+  const handleMirrorDownload = (url, versionId) => {
+    if (!url) return;
+    if (!isAuthenticated) {
+      toast.error('Please log in to download');
+      return;
+    }
+    window.open(url, '_blank');
+    downloadMutation.mutate(versionId);
+  };
+
   const handleReview = (e) => {
     e.preventDefault();
     if (!isAuthenticated) {
@@ -173,6 +190,8 @@ export default function AppDetailPage() {
   const screenshots = Array.isArray(app?.screenshots) ? app.screenshots : [];
   const versions = Array.isArray(versionsResponse) ? versionsResponse : versionsResponse?.items || [];
   const reviews = reviewsResponse?.items || reviewsResponse || [];
+  const favoriteEntries = Array.isArray(favoritesResponse) ? favoritesResponse : favoritesResponse?.items || [];
+  const isFavorited = favoriteEntries.some((entry) => Number(entry?.app?.id) === Number(id));
   const latestVersion = versions[0] || null;
   const heroStats = [
     {
@@ -394,10 +413,29 @@ export default function AppDetailPage() {
                   {downloadMutation.isPending ? 'Preparing download…' : app?.isFree ? 'Install' : 'Buy & Download'}
                 </button>
 
+                {latestVersion?.mirrorUrl && (
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => handleMirrorDownload(latestVersion.mirrorUrl, latestVersion.id)}
+                    disabled={downloadMutation.isPending}
+                    style={{
+                      width: '100%',
+                      justifyContent: 'center',
+                      borderRadius: 18,
+                      height: 48,
+                      background: 'rgba(64, 233, 8, 0.58)',
+                      color: 'white',
+                      borderColor: 'rgba(255,255,255,0.14)',
+                    }}
+                  >
+                    <Download size={16} /> Alternate Download
+                  </button>
+                )}
+
                 {isAuthenticated && (
                   <button
                     className="btn btn-secondary"
-                    onClick={() => favoriteMutation.mutate('add')}
+                    onClick={() => favoriteMutation.mutate(isFavorited ? 'remove' : 'add')}
                     disabled={favoriteMutation.isPending}
                     style={{
                       width: '100%',
@@ -409,7 +447,7 @@ export default function AppDetailPage() {
                       borderColor: 'rgba(255,255,255,0.14)',
                     }}
                   >
-                    <Heart size={16} /> Save to favorites
+                    <Heart size={16} /> {isFavorited ? 'Saved' : 'Save to favorites'}
                   </button>
                 )}
               </div>
@@ -623,14 +661,26 @@ export default function AppDetailPage() {
                             <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
                               {version.supportedOs?.length ? `Supported: ${version.supportedOs.join(', ')}` : 'Standard release package'}
                             </div>
-                            <button
-                              className="btn btn-primary btn-sm"
-                              onClick={() => handleVersionDownload(version)}
-                              disabled={downloadMutation.isPending}
-                              style={{ borderRadius: 12 }}
-                            >
-                              <Download size={14} /> Download v{version.version}
-                            </button>
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                              <button
+                                className="btn btn-primary btn-sm"
+                                onClick={() => handleVersionDownload(version)}
+                                disabled={downloadMutation.isPending}
+                                style={{ borderRadius: 12 }}
+                              >
+                                <Download size={14} /> Download v{version.version}
+                              </button>
+                              {version.mirrorUrl && (
+                                <button
+                                  className="btn btn-secondary btn-sm"
+                                  onClick={() => handleMirrorDownload(version.mirrorUrl, version.id)}
+                                  disabled={downloadMutation.isPending}
+                                  style={{ borderRadius: 12 }}
+                                >
+                                  <Download size={14} /> Alternate
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       ))}

@@ -209,7 +209,7 @@ const uploadAppVersionHandler = async (req, res, next) => {
     if (!file) {
       throw createHttpError(400, 'zip file is required');
     }
-    const { version, changelog, fileSize, supportedOs } = req.body || {};
+    const { version, changelog, fileSize, supportedOs, mirrorUrl } = req.body || {};
     if (!version) {
       throw createHttpError(400, 'version is required');
     }
@@ -226,7 +226,9 @@ const uploadAppVersionHandler = async (req, res, next) => {
       : [];
 
     const parsedExt = path.extname(file.originalname || '');
-    const downloadFormat = parsedExt ? parsedExt.slice(1).toLowerCase() : null;
+    const inferredFormat = parsedExt ? parsedExt.slice(1).toLowerCase() : null;
+    const downloadFormat = uploadResult.downloadFormat || inferredFormat;
+    const downloadPublicId = uploadResult.downloadPublicId || null;
 
     const created = await createAppVersion({
       appId: req.params.id,
@@ -236,7 +238,7 @@ const uploadAppVersionHandler = async (req, res, next) => {
         version,
         changelog,
         downloadUrl,
-        downloadPublicId: null,
+        downloadPublicId,
         downloadFormat,
         downloadFilename: file.originalname || null,
         storageProvider: uploadResult.storageProvider,
@@ -246,6 +248,7 @@ const uploadAppVersionHandler = async (req, res, next) => {
         mimeType: uploadResult.mimeType,
         fileSize: sizeLabel,
         supportedOs: supported,
+        mirrorUrl: mirrorUrl ? String(mirrorUrl).trim() : undefined,
       },
     });
 

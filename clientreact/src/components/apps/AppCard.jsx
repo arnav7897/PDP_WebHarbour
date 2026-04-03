@@ -48,7 +48,7 @@ export default function AppCard({ app }) {
   const gradient = getGradient(app.id);
   const emoji = getEmoji(app.id);
   const isFree = !app.price || app.price <= 0;
-  const rating = app.avgRating ? Number(app.avgRating).toFixed(1) : null;
+  const rating = app.averageRating ? Number(app.averageRating).toFixed(1) : null;
   const tags = app.tags?.slice(0, 2) || [];
 
   return (
@@ -99,7 +99,7 @@ export default function AppCard({ app }) {
             </div>
             <div className="app-card-title-block">
               <h3 className="app-card-name">{app.name}</h3>
-              <div className="app-card-category-label">{app.category?.name || app.type?.replace(/_/g, ' ')}</div>
+            <div className="app-card-category-label">{app.category?.name || app.contentType?.replace(/_/g, ' ')}</div>
             </div>
           </div>
 
@@ -120,9 +120,9 @@ export default function AppCard({ app }) {
                 {app.downloadCount >= 1000 ? `${(app.downloadCount / 1000).toFixed(1)}k` : app.downloadCount}
               </div>
             )}
-            {app.type && (
+            {app.contentType && (
               <div className="app-card-type-chip">
-                {app.type.replace(/_/g, ' ')}
+                {app.contentType.replace(/_/g, ' ')}
               </div>
             )}
           </div>

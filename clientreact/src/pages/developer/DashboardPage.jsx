@@ -78,6 +78,7 @@ const createVersionState = (app) => ({
   downloadUrl: '',
   fileSize: '',
   downloadFilename: '',
+  mirrorUrl: '',
   supportedOs: Array.isArray(app?.platforms) && app.platforms.length ? app.platforms : ['WEB'],
 });
 
@@ -122,9 +123,19 @@ function ToneMessage({ tone = 'info', children }) {
   );
 }
 
-function DeveloperEditPanel({ app, categories, tags, onSave, savePending, onSubmitForReview, submitPending }) {
+function DeveloperEditPanel({ app, categories, tags, onSave, savePending, onSubmitForReview, submitPending, onUploadMedia, uploadPending }) {
   const [form, setForm] = useState(() => createEditState(app));
   const [error, setError] = useState('');
+  const [mediaState, setMediaState] = useState(() => ({
+    iconFile: null,
+    bannerFile: null,
+    screenshotFiles: [],
+    screenshotMode: 'append',
+  }));
+  const [mediaError, setMediaError] = useState('');
+
+  const hasMediaFiles = Boolean(mediaState.iconFile || mediaState.bannerFile || (mediaState.screenshotFiles && mediaState.screenshotFiles.length));
+  const currentScreenshots = Array.isArray(app?.screenshots) ? app.screenshots : [];
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -160,6 +171,31 @@ function DeveloperEditPanel({ app, categories, tags, onSave, savePending, onSubm
       await onSave(app.id, payload);
     } catch (saveError) {
       setError(getErrorMessage(saveError, 'Failed to save app.'));
+    }
+  };
+
+  const handleMediaUpload = async () => {
+    setMediaError('');
+    if (!hasMediaFiles) {
+      setMediaError('Select at least one image to upload.');
+      return;
+    }
+
+    try {
+      await onUploadMedia(app.id, {
+        iconFile: mediaState.iconFile,
+        bannerFile: mediaState.bannerFile,
+        screenshotFiles: mediaState.screenshotFiles,
+        screenshotMode: mediaState.screenshotMode,
+      });
+      setMediaState({
+        iconFile: null,
+        bannerFile: null,
+        screenshotFiles: [],
+        screenshotMode: 'append',
+      });
+    } catch (uploadError) {
+      setMediaError(getErrorMessage(uploadError, 'Failed to upload media.'));
     }
   };
 
@@ -229,6 +265,84 @@ function DeveloperEditPanel({ app, categories, tags, onSave, savePending, onSubm
         <Field label="Screenshots" hint="One screenshot URL per line.">
           <textarea className="form-input form-textarea" style={{ minHeight: 110 }} placeholder="https://example.com/shot-1.png" value={form.screenshotsText} onChange={(event) => setForm((state) => ({ ...state, screenshotsText: event.target.value }))} />
         </Field>
+
+        <div style={{ padding: 16, borderRadius: 20, border: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
+          <div style={{ fontWeight: 700, marginBottom: 12 }}>Upload Media</div>
+          {mediaError && <ToneMessage tone="error">{mediaError}</ToneMessage>}
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginTop: 12 }}>
+            <Field label="Upload Icon">
+              <input
+                className="form-input"
+                type="file"
+                accept="image/*"
+                onChange={(event) => setMediaState((state) => ({ ...state, iconFile: event.target.files?.[0] || null }))}
+              />
+            </Field>
+            <Field label="Upload Banner">
+              <input
+                className="form-input"
+                type="file"
+                accept="image/*"
+                onChange={(event) => setMediaState((state) => ({ ...state, bannerFile: event.target.files?.[0] || null }))}
+              />
+            </Field>
+            <Field label="Upload Screenshots" hint="You can select multiple images.">
+              <input
+                className="form-input"
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(event) => setMediaState((state) => ({ ...state, screenshotFiles: Array.from(event.target.files || []) }))}
+              />
+            </Field>
+            <Field label="Screenshot Mode">
+              <select
+                className="form-input form-select"
+                value={mediaState.screenshotMode}
+                onChange={(event) => setMediaState((state) => ({ ...state, screenshotMode: event.target.value }))}
+              >
+                <option value="append">Append to existing</option>
+                <option value="replace">Replace existing</option>
+              </select>
+            </Field>
+          </div>
+
+          {(app?.iconUrl || app?.bannerUrl || currentScreenshots.length) && (
+            <div style={{ marginTop: 16 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>Current Media Preview</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                {app?.iconUrl && (
+                  <div style={{ width: 56, height: 56, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                    <img src={app.iconUrl} alt="App icon" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                )}
+                {app?.bannerUrl && (
+                  <div style={{ width: 140, height: 56, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                    <img src={app.bannerUrl} alt="App banner" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                )}
+                {currentScreenshots.slice(0, 4).map((url) => (
+                  <div key={url} style={{ width: 72, height: 56, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                    <img src={url} alt="Screenshot" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ borderRadius: 12 }}
+              disabled={uploadPending || !hasMediaFiles}
+              onClick={handleMediaUpload}
+            >
+              {uploadPending ? 'Uploading…' : 'Upload Media'}
+            </button>
+          </div>
+        </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
           <Field label="Platforms">
@@ -308,15 +422,19 @@ function DeveloperEditPanel({ app, categories, tags, onSave, savePending, onSubm
   );
 }
 
-function DeveloperVersionPanel({ app, versions, versionsLoading, onCreateVersion, onUpdateVersion, createPending, updatePending }) {
+function DeveloperVersionPanel({ app, versions, versionsLoading, onCreateVersion, onUploadVersion, onUpdateVersion, createPending, uploadPending, updatePending }) {
   const [form, setForm] = useState(() => createVersionState(app));
   const [error, setError] = useState('');
   const [editingVersionId, setEditingVersionId] = useState(null);
+  const [uploadMode, setUploadMode] = useState('upload');
+  const [uploadFile, setUploadFile] = useState(null);
 
   const resetForm = () => {
     setForm(createVersionState(app));
     setEditingVersionId(null);
     setError('');
+    setUploadMode('upload');
+    setUploadFile(null);
   };
 
   const handleSubmit = async (event) => {
@@ -324,28 +442,61 @@ function DeveloperVersionPanel({ app, versions, versionsLoading, onCreateVersion
     setError('');
 
     if (!form.version.trim()) return setError('Version number is required.');
-    if (!form.downloadUrl.trim()) return setError('Download URL is required.');
 
-    const payload = {
-      version: form.version.trim(),
-      changelog: form.changelog.trim() || null,
-      downloadUrl: form.downloadUrl.trim(),
-      fileSize: form.fileSize.trim() || '0 MB',
-      downloadFilename: form.downloadFilename.trim() || null,
-      supportedOs: form.supportedOs,
-    };
+    const isEditing = Boolean(editingVersionId);
+    const useUpload = uploadMode === 'upload' && !isEditing;
+
+    if (useUpload) {
+      if (!uploadFile) return setError('ZIP file is required.');
+    } else if (!form.downloadUrl.trim()) {
+      return setError('Download URL is required.');
+    }
 
     try {
-      if (editingVersionId) {
-        await onUpdateVersion(app.id, editingVersionId, payload);
+      if (useUpload) {
+        const payload = {
+          version: form.version.trim(),
+          changelog: form.changelog.trim() || null,
+          fileSize: form.fileSize.trim() || null,
+          supportedOs: form.supportedOs,
+          mirrorUrl: form.mirrorUrl.trim() || null,
+          file: uploadFile,
+        };
+        await onUploadVersion(app.id, payload);
       } else {
-        await onCreateVersion(app.id, payload);
+        const payload = {
+          version: form.version.trim(),
+          changelog: form.changelog.trim() || null,
+          downloadUrl: form.downloadUrl.trim(),
+          fileSize: form.fileSize.trim() || '0 MB',
+          downloadFilename: form.downloadFilename.trim() || null,
+          mirrorUrl: form.mirrorUrl.trim() || null,
+          supportedOs: form.supportedOs,
+        };
+
+        if (isEditing) {
+          await onUpdateVersion(app.id, editingVersionId, payload);
+        } else {
+          await onCreateVersion(app.id, payload);
+        }
       }
       resetForm();
     } catch (submitError) {
-      setError(getErrorMessage(submitError, editingVersionId ? 'Failed to update version.' : 'Failed to add version.'));
+      setError(getErrorMessage(submitError, editingVersionId ? 'Failed to update version.' : useUpload ? 'Failed to upload version.' : 'Failed to add version.'));
     }
   };
+
+  const handleFileChange = (event) => {
+    const file = event.target.files?.[0] || null;
+    setUploadFile(file);
+    if (file && !form.fileSize.trim()) {
+      const mb = Math.max(1, Math.round(file.size / (1024 * 1024)));
+      setForm((state) => ({ ...state, fileSize: `${mb} MB` }));
+    }
+  };
+
+  const showUploadFields = uploadMode === 'upload' && !editingVersionId;
+  const showUrlFields = !showUploadFields;
 
   return (
     <>
@@ -353,6 +504,38 @@ function DeveloperVersionPanel({ app, versions, versionsLoading, onCreateVersion
         {error && <ToneMessage tone="error">{error}</ToneMessage>}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {!editingVersionId ? (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className={showUploadFields ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
+                style={{ borderRadius: 12 }}
+                onClick={() => {
+                  setUploadMode('upload');
+                  setError('');
+                }}
+              >
+                Upload ZIP
+              </button>
+              <button
+                type="button"
+                className={showUrlFields ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
+                style={{ borderRadius: 12 }}
+                onClick={() => {
+                  setUploadMode('url');
+                  setUploadFile(null);
+                  setError('');
+                }}
+              >
+                Use Download URL
+              </button>
+            </div>
+          ) : (
+            <ToneMessage tone="info">
+              Editing an existing version uses the download URL. Upload a new ZIP to publish a new version.
+            </ToneMessage>
+          )}
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
             <Field label="Version Number">
               <input className="form-input" placeholder="1.0.0" value={form.version} onChange={(event) => setForm((state) => ({ ...state, version: event.target.value }))} />
@@ -360,13 +543,32 @@ function DeveloperVersionPanel({ app, versions, versionsLoading, onCreateVersion
             <Field label="File Size">
               <input className="form-input" placeholder="128 MB" value={form.fileSize} onChange={(event) => setForm((state) => ({ ...state, fileSize: event.target.value }))} />
             </Field>
-            <Field label="Download File Name">
-              <input className="form-input" placeholder="my-app-v1.0.0.zip" value={form.downloadFilename} onChange={(event) => setForm((state) => ({ ...state, downloadFilename: event.target.value }))} />
+            <Field label="Mirror URL" hint="Optional developer-provided mirror link.">
+              <input className="form-input" placeholder="https://downloads.example.com/my-app.zip" value={form.mirrorUrl} onChange={(event) => setForm((state) => ({ ...state, mirrorUrl: event.target.value }))} />
             </Field>
+            {showUrlFields && (
+              <Field label="Download File Name">
+                <input className="form-input" placeholder="my-app-v1.0.0.zip" value={form.downloadFilename} onChange={(event) => setForm((state) => ({ ...state, downloadFilename: event.target.value }))} />
+              </Field>
+            )}
+          </div>
+
+          {showUrlFields && (
             <Field label="Download URL">
               <input className="form-input" placeholder="https://cdn.example.com/my-app-v1.0.0.zip" value={form.downloadUrl} onChange={(event) => setForm((state) => ({ ...state, downloadUrl: event.target.value }))} />
             </Field>
-          </div>
+          )}
+
+          {showUploadFields && (
+            <Field label="ZIP File" hint="Upload the .zip release package for this version.">
+              <input className="form-input" type="file" accept=".zip,application/zip" onChange={handleFileChange} />
+              {uploadFile && (
+                <div style={{ marginTop: 6, fontSize: 12, color: 'var(--text-muted)' }}>
+                  Selected: {uploadFile.name}
+                </div>
+              )}
+            </Field>
+          )}
 
           <Field label="Supported OS">
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -400,10 +602,12 @@ function DeveloperVersionPanel({ app, versions, versionsLoading, onCreateVersion
             <button type="button" className="btn btn-secondary" style={{ borderRadius: 12 }} onClick={resetForm}>
               {editingVersionId ? 'Cancel Edit' : 'Clear'}
             </button>
-            <button type="submit" className="btn btn-primary" style={{ borderRadius: 12 }} disabled={createPending || updatePending}>
+            <button type="submit" className="btn btn-primary" style={{ borderRadius: 12 }} disabled={createPending || uploadPending || updatePending}>
               {editingVersionId
                 ? (updatePending ? <><div className="spinner" style={{ width: 14, height: 14 }} /> Saving…</> : <><Save size={15} /> Save Version</>)
-                : (createPending ? <><div className="spinner" style={{ width: 14, height: 14 }} /> Publishing…</> : <><Plus size={15} /> Add Version</>)}
+                : showUploadFields
+                  ? (uploadPending ? <><div className="spinner" style={{ width: 14, height: 14 }} /> Uploading…</> : <><Plus size={15} /> Upload & Publish</>)
+                  : (createPending ? <><div className="spinner" style={{ width: 14, height: 14 }} /> Publishing…</> : <><Plus size={15} /> Add Version</>)}
             </button>
           </div>
         </form>
@@ -442,8 +646,11 @@ function DeveloperVersionPanel({ app, versions, versionsLoading, onCreateVersion
                           downloadUrl: version.downloadUrl || '',
                           fileSize: version.fileSize || '',
                           downloadFilename: version.downloadFilename || '',
+                          mirrorUrl: version.mirrorUrl || '',
                           supportedOs: Array.isArray(version.supportedOs) && version.supportedOs.length ? version.supportedOs : (Array.isArray(app.platforms) ? app.platforms : ['WEB']),
                         });
+                        setUploadMode('url');
+                        setUploadFile(null);
                       }}
                     >
                       <PencilLine size={14} /> Edit
@@ -579,6 +786,26 @@ export default function DashboardPage() {
     onError: (error) => toast.error(getErrorMessage(error, 'Failed to update app.')),
   });
 
+  const uploadMediaMutation = useMutation({
+    mutationFn: ({ appId, payload }) => {
+      const formData = new FormData();
+      if (payload.iconFile) formData.append('icon', payload.iconFile);
+      if (payload.bannerFile) formData.append('banner', payload.bannerFile);
+      if (payload.screenshotFiles?.length) {
+        payload.screenshotFiles.forEach((file) => formData.append('screenshots', file));
+      }
+      if (payload.screenshotMode) formData.append('mode', payload.screenshotMode);
+      return api.post(`/apps/${appId}/media`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }).then((r) => r.data);
+    },
+    onSuccess: async (_, variables) => {
+      toast.success('Media uploaded successfully.');
+      await invalidateDeveloperAppData(variables.appId);
+    },
+    onError: (error) => toast.error(getErrorMessage(error, 'Failed to upload media.')),
+  });
+
   const createVersionMutation = useMutation({
     mutationFn: ({ appId, payload }) => api.post(`/apps/${appId}/versions`, payload).then((r) => r.data),
     onSuccess: async (_, variables) => {
@@ -586,6 +813,26 @@ export default function DashboardPage() {
       await invalidateDeveloperAppData(variables.appId);
     },
     onError: (error) => toast.error(getErrorMessage(error, 'Failed to add version.')),
+  });
+
+  const uploadVersionMutation = useMutation({
+    mutationFn: ({ appId, payload }) => {
+      const formData = new FormData();
+      formData.append('zip', payload.file);
+      formData.append('version', payload.version);
+      if (payload.changelog) formData.append('changelog', payload.changelog);
+      if (payload.fileSize) formData.append('fileSize', payload.fileSize);
+      if (payload.supportedOs?.length) formData.append('supportedOs', payload.supportedOs.join(','));
+      if (payload.mirrorUrl) formData.append('mirrorUrl', payload.mirrorUrl);
+      return api.post(`/apps/${appId}/versions/upload`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }).then((r) => r.data);
+    },
+    onSuccess: async (_, variables) => {
+      toast.success('Version uploaded successfully.');
+      await invalidateDeveloperAppData(variables.appId);
+    },
+    onError: (error) => toast.error(getErrorMessage(error, 'Failed to upload version.')),
   });
 
   const updateVersionMutation = useMutation({
@@ -598,7 +845,9 @@ export default function DashboardPage() {
   });
 
   const handleSaveApp = (appId, payload) => saveAppMutation.mutateAsync({ appId, payload });
+  const handleUploadMedia = (appId, payload) => uploadMediaMutation.mutateAsync({ appId, payload });
   const handleCreateVersion = (appId, payload) => createVersionMutation.mutateAsync({ appId, payload });
+  const handleUploadVersion = (appId, payload) => uploadVersionMutation.mutateAsync({ appId, payload });
   const handleUpdateVersion = (appId, versionId, payload) => updateVersionMutation.mutateAsync({ appId, versionId, payload });
   const handleSubmitForReview = (appId) => submitAppMutation.mutate(appId);
 
@@ -753,6 +1002,8 @@ export default function DashboardPage() {
                     savePending={saveAppMutation.isPending}
                     onSubmitForReview={handleSubmitForReview}
                     submitPending={submitAppMutation.isPending}
+                    onUploadMedia={handleUploadMedia}
+                    uploadPending={uploadMediaMutation.isPending}
                   />
 
                   <DeveloperVersionPanel
@@ -761,8 +1012,10 @@ export default function DashboardPage() {
                     versions={versions}
                     versionsLoading={versionsQuery.isLoading}
                     onCreateVersion={handleCreateVersion}
+                    onUploadVersion={handleUploadVersion}
                     onUpdateVersion={handleUpdateVersion}
                     createPending={createVersionMutation.isPending}
+                    uploadPending={uploadVersionMutation.isPending}
                     updatePending={updateVersionMutation.isPending}
                   />
                 </>

@@ -644,6 +644,9 @@ router.delete('/:id/favorite', auth, requireRole('USER'), removeFavoriteHandler)
  *                 type: string
  *                 description: Human readable file size.
  *                 example: 52 MB
+ *               mirrorUrl:
+ *                 type: string
+ *                 description: Optional developer-provided mirror download URL.
  *               supportedOs:
  *                 type: array
  *                 description: Platforms supported by this release.
@@ -655,6 +658,7 @@ router.delete('/:id/favorite', auth, requireRole('USER'), removeFavoriteHandler)
  *             changelog: Fixed dark mode issues and improved performance.
  *             downloadUrl: https://cdn.example.com/apps/notion-theme-pack-1.0.1.zip
  *             fileSize: 52 MB
+ *             mirrorUrl: https://downloads.example.com/notion-theme-pack-1.0.1.zip
  *             supportedOs: [WEB, WINDOWS, MACOS]
  *     responses:
  *       201:
@@ -738,6 +742,9 @@ router.patch('/:id/versions/:versionId', auth, requireRole('DEVELOPER'), updateA
  *               supportedOs:
  *                 type: string
  *                 description: Comma-separated list (e.g., WEB,WINDOWS,ANDROID)
+ *               mirrorUrl:
+ *                 type: string
+ *                 description: Optional developer-provided mirror download URL.
  *     responses:
  *       201:
  *         description: Version created

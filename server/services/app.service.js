@@ -542,6 +542,7 @@ const createAppVersion = async ({ appId, userId, actor, body }) => {
     storageObjectUrl,
     mimeType,
     fileSize,
+    mirrorUrl,
     supportedOs,
   } = body || {};
   if (!version || !downloadUrl) {
@@ -562,6 +563,7 @@ const createAppVersion = async ({ appId, userId, actor, body }) => {
           downloadPublicId: downloadPublicId ? String(downloadPublicId) : null,
           downloadFormat: downloadFormat ? String(downloadFormat) : null,
           downloadFilename: downloadFilename ? String(downloadFilename) : null,
+          mirrorUrl: mirrorUrl ? String(mirrorUrl) : null,
           storageProvider: storageProvider ? String(storageProvider) : null,
           storageBucket: storageBucket ? String(storageBucket) : null,
           storageKey: storageKey ? String(storageKey) : null,
@@ -661,6 +663,11 @@ const updateAppVersion = async ({ appId, versionId, userId, actor, body }) => {
   if (input.downloadFormat !== undefined) {
     const value = String(input.downloadFormat || '').trim();
     data.downloadFormat = value || null;
+  }
+
+  if (input.mirrorUrl !== undefined) {
+    const value = String(input.mirrorUrl || '').trim();
+    data.mirrorUrl = value || null;
   }
 
   if (input.storageProvider !== undefined) {
