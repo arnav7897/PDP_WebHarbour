@@ -90,104 +90,139 @@ export default function HomePage() {
   return (
     <div style={{ background: 'var(--bg-primary)' }}>
       {/* ═══════════ HERO ═══════════ */}
-      <section style={{
-        background: 'linear-gradient(180deg, #EFF6FF 0%, #F8FAFC 100%)',
-        borderBottom: '1px solid var(--border)',
-        overflow: 'hidden', position: 'relative',
-        padding: '80px 0 70px',
-      }}>
-        {/* Grid pattern */}
+      <section className="hero" style={{ borderBottom: '1px solid var(--border)', padding: '120px 0 100px' }}>
+        <div className="hero-grid-bg" />
         <div style={{
-          position: 'absolute', inset: 0,
-          backgroundImage: 'linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px)',
-          backgroundSize: '40px 40px',
-          opacity: 0.4, pointerEvents: 'none',
-        }} />
-        {/* Glow */}
-        <div style={{
-          position: 'absolute', top: -80, left: '50%', transform: 'translateX(-50%)',
-          width: 800, height: 400,
-          background: 'radial-gradient(ellipse, rgba(37,99,235,0.12) 0%, transparent 65%)',
+          position: 'absolute', top: -80, left: '20%',
+          width: 800, height: 600,
+          background: 'radial-gradient(ellipse, rgba(37,99,235,0.15) 0%, transparent 65%)',
           pointerEvents: 'none',
         }} />
 
-        <div className="container text-center" style={{ position: 'relative', zIndex: 1 }}>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <div className="section-header-pill" style={{ margin: '0 auto 20px' }}>
-              <Sparkles size={11} /> The marketplace for builders
-            </div>
-          </motion.div>
+        <div className="container" style={{ position: 'relative', zIndex: 1 }}>
+          <div className="hero-split">
+            
+            {/* Left Column: Copy & Search */}
+            <div className="hero-content">
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+                <div className="section-header-pill" style={{ marginBottom: '24px' }}>
+                  <Sparkles size={11} /> The marketplace for builders
+                </div>
+              </motion.div>
 
-          <motion.h1
-            className="hero-title"
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-          >
-            Discover Apps That<br />
-            <span className="hero-title-gradient">Ship Work Faster</span>
-          </motion.h1>
-
-          <motion.p
-            className="hero-subtitle"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
-            Browse, download, and manage the best digital products — from tools and templates to plugins and beyond.
-          </motion.p>
-
-          {/* Search */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-          >
-            <form onSubmit={handleSearch} className="hero-search">
-              <Search size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-              <input
-                id="hero-search-input"
-                type="text"
-                className="hero-search-input"
-                placeholder="Search for apps, tools, templates…"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
-              <button type="submit" className="btn btn-primary btn-sm">
-                Search <ArrowRight size={13} />
-              </button>
-            </form>
-          </motion.div>
-
-          {/* Category pills */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.45 }}
-            style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 8, marginTop: 20 }}
-          >
-            {CATEGORIES.map((c) => (
-              <button
-                key={c}
-                onClick={() => navigate(`/marketplace?category=${encodeURIComponent(c)}`)}
+              <motion.h1
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
                 style={{
-                  padding: '5px 14px', borderRadius: 100,
-                  background: 'var(--bg-card)', border: '1px solid var(--border)',
-                  fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)',
-                  cursor: 'pointer', transition: 'all 0.15s',
-                  boxShadow: 'var(--shadow-xs)',
+                  fontFamily: "'Space Grotesk'",
+                  fontSize: 'clamp(42px, 6vw, 72px)',
+                  fontWeight: 900,
+                  lineHeight: 1.05,
+                  letterSpacing: '-0.04em',
+                  color: 'var(--text-primary)',
+                  marginBottom: '24px'
                 }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-border)'; e.currentTarget.style.color = 'var(--accent)'; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
               >
-                {c}
-              </button>
-            ))}
-          </motion.div>
+                Discover Apps That<br />
+                <span className="hero-title-gradient">Ship Work Faster</span>
+              </motion.h1>
+
+              <motion.p
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+                style={{
+                  fontSize: 'clamp(16px, 2vw, 19px)',
+                  color: 'var(--text-secondary)',
+                  lineHeight: 1.7,
+                  marginBottom: '40px',
+                  maxWidth: '560px'
+                }}
+              >
+                Browse, download, and manage the best digital products — from tools and templates to plugins and beyond.
+              </motion.p>
+
+              {/* Search */}
+              <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }}>
+                <form onSubmit={handleSearch} className="hero-search" style={{ margin: '0', maxWidth: '560px' }}>
+                  <Search size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                  <input
+                    id="hero-search-input"
+                    type="text"
+                    className="hero-search-input"
+                    placeholder="Search for apps, tools, templates…"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                  />
+                  <button type="submit" className="btn btn-primary btn-sm" style={{ padding: '8px 18px', fontSize: '14px' }}>
+                    Search <ArrowRight size={14} />
+                  </button>
+                </form>
+              </motion.div>
+
+              {/* Category pills */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.45 }}
+                style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: '24px' }}
+              >
+                {CATEGORIES.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => navigate(`/marketplace?category=${encodeURIComponent(c)}`)}
+                    style={{
+                      padding: '6px 16px', borderRadius: 100,
+                      background: 'var(--bg-card)', border: '1px solid var(--border)',
+                      fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)',
+                      cursor: 'pointer', transition: 'all 0.15s',
+                      boxShadow: 'var(--shadow-xs)',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-border)'; e.currentTarget.style.color = 'var(--accent)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </motion.div>
+            </div>
+
+            {/* Right Column: Floating Cards Showcase */}
+            <div style={{ position: 'relative', height: '100%', minHeight: '500px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, rotate: -4 }}
+                animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                transition={{ duration: 0.8, delay: 0.2, ease: [0.21, 0.47, 0.32, 0.98] }}
+                style={{ display: 'flex', gap: '24px', transform: 'perspective(1000px) rotateY(-8deg)' }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', transform: 'translateY(40px)' }}>
+                  <div className="card" style={{ width: '280px', padding: '16px', background: 'var(--bg-card)', border: '1px solid var(--borderStrong)', borderRadius: '24px', boxShadow: 'var(--shadow-xl)' }}>
+                    <div style={{ height: '120px', background: 'linear-gradient(135deg, #1E3A5F, #2563EB)', borderRadius: '12px', marginBottom: '16px' }} />
+                    <div style={{ width: '60%', height: '12px', background: 'var(--bg-secondary)', borderRadius: '6px', marginBottom: '8px' }} />
+                    <div style={{ width: '40%', height: '10px', background: 'var(--bg-tertiary)', borderRadius: '5px' }} />
+                  </div>
+                  <div className="card" style={{ width: '280px', padding: '16px', background: 'var(--bg-card)', border: '1px solid var(--borderStrong)', borderRadius: '24px', boxShadow: 'var(--shadow-xl)' }}>
+                    <div style={{ height: '120px', background: 'linear-gradient(135deg, #450A0A, #DC2626)', borderRadius: '12px', marginBottom: '16px' }} />
+                    <div style={{ width: '70%', height: '12px', background: 'var(--bg-secondary)', borderRadius: '6px', marginBottom: '8px' }} />
+                    <div style={{ width: '50%', height: '10px', background: 'var(--bg-tertiary)', borderRadius: '5px' }} />
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', transform: 'translateY(-20px)' }}>
+                  <div className="card" style={{ width: '280px', padding: '16px', background: 'var(--bg-card)', border: '1px solid var(--borderStrong)', borderRadius: '24px', boxShadow: 'var(--shadow-xl)' }}>
+                    <div style={{ height: '120px', background: 'linear-gradient(135deg, #1C1917, #F97316)', borderRadius: '12px', marginBottom: '16px' }} />
+                    <div style={{ width: '50%', height: '12px', background: 'var(--bg-secondary)', borderRadius: '6px', marginBottom: '8px' }} />
+                    <div style={{ width: '30%', height: '10px', background: 'var(--bg-tertiary)', borderRadius: '5px' }} />
+                  </div>
+                  <div className="card" style={{ width: '280px', padding: '16px', background: 'var(--bg-card)', border: '1px solid var(--borderStrong)', borderRadius: '24px', boxShadow: 'var(--shadow-xl)' }}>
+                    <div style={{ height: '120px', background: 'linear-gradient(135deg, #134E4A, #0D9488)', borderRadius: '12px', marginBottom: '16px' }} />
+                    <div style={{ width: '80%', height: '12px', background: 'var(--bg-secondary)', borderRadius: '6px', marginBottom: '8px' }} />
+                    <div style={{ width: '60%', height: '10px', background: 'var(--bg-tertiary)', borderRadius: '5px' }} />
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          </div>
         </div>
       </section>
 

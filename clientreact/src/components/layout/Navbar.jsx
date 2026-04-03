@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../store/authStore';
-import { Anchor, Search, Bell, ChevronDown, User, Settings, LogOut, Package, Shield, Heart, Code2, X, Menu } from 'lucide-react';
+import { useThemeStore } from '../../store/themeStore';
+import { Anchor, Search, Bell, ChevronDown, User, Settings, LogOut, Package, Shield, Heart, Code2, X, Menu, Moon, Sun } from 'lucide-react';
 
 function UserMenu({ user, onLogout }) {
   const [open, setOpen] = useState(false);
@@ -149,6 +150,7 @@ function MobileMenu({ open, onClose, user, onLogout }) {
 export default function Navbar() {
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuthStore();
+  const { theme, toggle } = useThemeStore();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
@@ -217,6 +219,9 @@ export default function Navbar() {
 
           {/* Actions */}
           <div className="navbar-actions">
+            <button className="btn-theme-toggle" onClick={toggle} title="Toggle Theme">
+              {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
+            </button>
             {isAuthenticated && user ? (
               <UserMenu user={user} onLogout={handleLogout} />
             ) : (
