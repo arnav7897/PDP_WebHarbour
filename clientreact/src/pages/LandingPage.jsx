@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, useInView } from 'framer-motion';
+import { motion, useInView, AnimatePresence } from 'framer-motion';
 import {
   Anchor, ArrowRight, Zap, Shield, Package, Star,
   CheckCircle, Code2, Globe, Sparkles, ChevronDown, Play, TrendingUp,
@@ -523,6 +523,65 @@ const TIMELINE = [
   { icon: TrendingUp, title: 'Grow & Earn', desc: 'Track downloads, collect reviews, and keep your users updated.', color: '#c084fc' },
 ];
 
+function CinematicBlurText({ text }) {
+  const words = text.split(" ");
+  return (
+    <span style={{ display: 'inline-block' }}>
+      {words.map((word, i) => (
+        <motion.span
+          key={i}
+          initial={{ filter: 'blur(16px)', opacity: 0, scale: 1.15 }}
+          animate={{ filter: 'blur(0px)', opacity: 1, scale: 1 }}
+          transition={{ duration: 0.8, delay: i * 0.15 + 0.1, ease: [0.16, 1, 0.3, 1] }}
+          className="blur-word"
+        >
+          {word}&nbsp;
+        </motion.span>
+      ))}
+    </span>
+  );
+}
+
+function AdvancedTextRoller({ words }) {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIndex((prev) => (prev + 1) % words.length);
+    }, 2500); // changes every 2.5s
+    return () => clearInterval(interval);
+  }, [words]);
+
+  return (
+    <span style={{ 
+      display: 'inline-flex', 
+      flexDirection: 'column',
+      position: 'relative', 
+      overflow: 'hidden', 
+      height: '1.1em',
+      verticalAlign: 'bottom',
+      paddingBottom: '0.1em'
+    }}>
+      <AnimatePresence mode="popLayout">
+        <motion.span
+           key={index}
+           initial={{ y: 80, opacity: 0, rotateX: -90 }}
+           animate={{ y: 0, opacity: 1, rotateX: 0 }}
+           exit={{ y: -80, opacity: 0, rotateX: 90 }}
+           transition={{ duration: 0.6, type: 'spring', bounce: 0.3 }}
+           style={{ 
+             display: 'block',
+             paddingRight: '8px'
+           }}
+           className="liquid-gradient-text"
+        >
+          {words[index]}
+        </motion.span>
+      </AnimatePresence>
+    </span>
+  );
+}
+
 export default function LandingPage() {
   const navigate = useNavigate();
   const handleEnter = () => navigate('/home');
@@ -575,15 +634,15 @@ export default function LandingPage() {
               marginBottom: 12, maxWidth: 900,
             }}
           >
-            The Marketplace for
+            <CinematicBlurText text="The Marketplace for" />
             <br />
-            <Typewriter words={['Developers', 'Creators', 'Builders', 'Innovators']} />
+            <AdvancedTextRoller words={['Developers', 'Creators', 'Builders', 'Innovators']} />
           </motion.h1>
 
           <motion.p
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 60 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.25 }}
+            transition={{ duration: 1.2, delay: 1.4, ease: [0.16, 1, 0.3, 1] }}
             style={{
               fontSize: 'clamp(16px, 2.5vw, 20px)',
               color: 'rgba(255,255,255,0.55)', lineHeight: 1.7,

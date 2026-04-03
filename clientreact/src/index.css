@@ -1178,3 +1178,24 @@ input, textarea, select { font-family: inherit; }
   transform: translate(-50%, -50%);
   transition: opacity 0.3s;
 }
+
+/* Liquid Gradient Text */
+.liquid-gradient-text {
+  background: linear-gradient(110deg, #a5b4fc 0%, #c084fc 35%, #3b82f6 70%, #a5b4fc 100%);
+  background-size: 200% auto;
+  color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: liquidGradient 3s linear infinite;
+}
+
+@keyframes liquidGradient {
+  from { background-position: 0% center; }
+  to { background-position: 200% center; }
+}
+
+.blur-word {
+  display: inline-block;
+  margin-right: 0.25em;
+  white-space: nowrap;
+}
