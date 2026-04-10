@@ -1,11 +1,12 @@
 import React, { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, useInView } from 'framer-motion';
-import { useQuery } from '@tanstack/react-query';
-import api from '../lib/api';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import api, { getStoredRefreshToken, storeSessionTokens } from '../lib/api';
 import AppCard from '../components/apps/AppCard';
 import { LoadingGrid, EmptyState } from '../components/ui';
 import { useAuthStore } from '../store/authStore';
+import toast from 'react-hot-toast';
 import {
   Search, ArrowRight, Zap, Shield, Package, Star, TrendingUp,
   Users, Download, Anchor, Code2, Globe, BarChart3,
@@ -193,7 +194,8 @@ function LeaderboardFeatureCard({ leader, featured = false }) {
 export default function HomePage() {
   const [search, setSearch] = useState('');
   const navigate = useNavigate();
-  const { isAuthenticated, user } = useAuthStore();
+  const queryClient = useQueryClient();
+  const { isAuthenticated, user, refreshUser, updateUser } = useAuthStore();
 
   // Mouse tracking logic for Hero Glow
   const heroRef = useRef(null);
@@ -211,6 +213,13 @@ export default function HomePage() {
     queryFn: () => api.get('/apps?limit=6&status=PUBLISHED').then(r => r.data),
   });
 
+  const developerStatusQuery = useQuery({
+    queryKey: ['auth', 'developer-status'],
+    queryFn: () => api.get('/auth/developer-status').then((r) => r.data),
+    enabled: isAuthenticated && user?.role === 'USER',
+    staleTime: 1000 * 30,
+  });
+
   const leaderboardQuery = useQuery({
     queryKey: ['developer', 'analytics', 'top-developers', 'home'],
     queryFn: () => api.get('/developer/analytics/top-developers?window=30&sort=overall&limit=3').then((r) => r.data),
@@ -218,8 +227,49 @@ export default function HomePage() {
     staleTime: 1000 * 60 * 5,
   });
 
+  const becomeDeveloperMutation = useMutation({
+    mutationFn: () => api.post('/auth/become-developer', {}),
+    onSuccess: (data) => {
+      const status = data?.status || 'PENDING';
+      if (status === 'APPROVED') {
+        toast.success('Developer access approved. Refresh your session to continue.');
+      } else {
+        toast.success('Developer request submitted.');
+      }
+      queryClient.invalidateQueries({ queryKey: ['auth', 'developer-status'] });
+    },
+    onError: (error) => toast.error(error?.response?.data?.error?.message || 'Request failed'),
+  });
+
+  const refreshSessionMutation = useMutation({
+    mutationFn: async () => {
+      const refreshToken = getStoredRefreshToken();
+      if (!refreshToken) throw new Error('Missing refresh token');
+      const { data } = await api.post('/auth/refresh', { refreshToken });
+      storeSessionTokens(data);
+      return data;
+    },
+    onSuccess: async (data) => {
+      if (data?.user) updateUser(data.user);
+      if (refreshUser) await refreshUser();
+      toast.success('Session refreshed.');
+      queryClient.invalidateQueries({ queryKey: ['auth', 'developer-status'] });
+    },
+    onError: (error) => toast.error(error?.response?.data?.error?.message || error?.message || 'Refresh failed'),
+  });
+
   const apps = featuredData?.items || [];
   const topDevelopers = leaderboardQuery.data?.leaders || [];
+  const developerStatus = developerStatusQuery.data?.status || 'NONE';
+  const isDeveloperAccessPending = developerStatus === 'PENDING';
+  const isDeveloperAccessApproved = developerStatus === 'APPROVED';
+  const developerStatusMessage = developerStatusQuery.isLoading
+    ? 'Checking your developer access status...'
+    : isDeveloperAccessApproved
+      ? 'Developer access approved. Refresh your session to unlock the dashboard.'
+      : isDeveloperAccessPending
+        ? 'Developer request pending admin approval.'
+        : 'Request developer access to publish, manage apps, and access analytics.';
   const leaderboardCta = user?.role === 'ADMIN'
     ? { to: '/admin?view=dashboard', label: 'Full Analytics' }
     : user?.role === 'DEVELOPER'
@@ -409,6 +459,67 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {isAuthenticated && user?.role === 'USER' && (
+        <section style={{ padding: '50px 0 30px', background: 'var(--bg-primary)' }}>
+          <div className="container">
+            <div
+              style={{
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border)',
+                borderRadius: 28,
+                padding: 28,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 24,
+                flexWrap: 'wrap',
+                boxShadow: 'var(--shadow-sm)',
+              }}
+            >
+              <div style={{ maxWidth: 620 }}>
+                <div className="section-header-pill" style={{ marginBottom: 12 }}>
+                  <Code2 size={12} /> Developer Access
+                </div>
+                <h2 style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.03em', marginBottom: 8 }}>
+                  Publish your apps on WebHarbour
+                </h2>
+                <p style={{ color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: 0 }}>
+                  {developerStatusMessage}
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                {isDeveloperAccessApproved ? (
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => refreshSessionMutation.mutate()}
+                    disabled={refreshSessionMutation.isPending}
+                  >
+                    {refreshSessionMutation.isPending ? 'Refreshing…' : 'Refresh Session'}
+                  </button>
+                ) : (
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => becomeDeveloperMutation.mutate()}
+                    disabled={becomeDeveloperMutation.isPending || isDeveloperAccessPending || developerStatusQuery.isLoading}
+                  >
+                    {isDeveloperAccessPending
+                      ? 'Request Pending'
+                      : becomeDeveloperMutation.isPending
+                        ? 'Submitting…'
+                        : 'Request Developer Access'}
+                  </button>
+                )}
+                {isDeveloperAccessApproved && (
+                  <Link to="/developer" className="btn btn-secondary">
+                    Developer Dashboard
+                  </Link>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {isAuthenticated && (
         <section style={{ padding: '90px 0 40px', background: 'var(--bg-primary)' }}>

@@ -1,0 +1,12 @@
+flowchart TB
+  %% Project Goals and Objectives
+  G[Project Goals & Objectives]
+
+  G --> Z[Zero-cost publishing\nFree account + optional app pricing]
+  G --> R[Role-based trust model\nUSER/DEVELOPER/MODERATOR/ADMIN]
+  G --> L[End-to-end app lifecycle\nDraft -> Review -> Published/Rejected/Suspended/Deprecated]
+  G --> V[Versioned distribution\nChangelogs, checksums, download URLs, stats]
+  G --> C[Community feedback\nOne review per user + moderation + reporting]
+  G --> D[Catalog & discovery\nAdmin-managed categories and tags]
+  G --> A[Developer insights\nOverview + per-app analytics]
+  G --> P[Developer-ready API\nOpenAPI docs + standard errors + health]

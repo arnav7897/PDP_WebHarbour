@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
@@ -23,6 +23,13 @@ import {
   BadgeCheck,
   Clock3,
 } from 'lucide-react';
+import {
+  buildDownloadKey,
+  getStoredDownload,
+  saveStoredDownload,
+  supportsIndexedDB,
+  triggerBlobDownload,
+} from '../lib/localDownloadStore';
 
 const APP_EMOJIS = ['🚀', '⚡', '🎯', '💡', '🔧', '🎮', '📱', '🌐', '🔑', '📊'];
 const APP_GRADIENTS = [
@@ -80,6 +87,8 @@ export default function AppDetailPage() {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [reviewTitle, setReviewTitle] = useState('');
+  const [installingVersionId, setInstallingVersionId] = useState(null);
+  const [storedDownloads, setStoredDownloads] = useState({});
 
   const { data: app, isLoading, error } = useQuery({
     queryKey: ['app', id],
@@ -139,22 +148,73 @@ export default function AppDetailPage() {
     onError: (err) => toast.error(err.response?.data?.error?.message || 'Review failed'),
   });
 
-  const handleDownload = () => {
-    if (!isAuthenticated) {
-      toast.error('Please log in to download');
-      return;
-    }
-    window.open(`/apps/${id}/download/redirect`, '_blank');
-    downloadMutation.mutate();
+  const buildFilename = (version) => {
+    if (!version) return 'download.zip';
+    const fallbackName = app?.slug || app?.name || `app-${id}`;
+    const base = version.downloadFilename || `${fallbackName}-v${version.version || 'latest'}`;
+    if (/\.[a-z0-9]+$/i.test(base)) return base;
+    const ext = version.downloadFormat ? `.${version.downloadFormat}` : '.zip';
+    return `${base}${ext}`;
   };
 
-  const handleVersionDownload = (version) => {
+  const handleInstall = async (version) => {
     if (!isAuthenticated) {
       toast.error('Please log in to download');
       return;
     }
-    window.open(`/apps/${id}/download/redirect?versionId=${version.id}`, '_blank');
-    downloadMutation.mutate(version.id);
+    const targetVersion = version || latestVersion;
+    if (!targetVersion?.id) {
+      toast.error('No version available for download.');
+      return;
+    }
+
+    const versionId = targetVersion.id;
+    const filename = buildFilename(targetVersion);
+    const key = buildDownloadKey(id, versionId);
+    setInstallingVersionId(versionId);
+
+    try {
+      if (supportsIndexedDB()) {
+        const existing = await getStoredDownload(key);
+        if (existing?.blob) {
+          triggerBlobDownload(existing.blob, existing.filename || filename);
+          downloadMutation.mutate(versionId);
+          return;
+        }
+      }
+
+      const response = await fetch(`/apps/${id}/download/redirect?versionId=${versionId}`, {
+        method: 'GET',
+      });
+      if (!response.ok) {
+        throw new Error('Download failed');
+      }
+
+      const blob = await response.blob();
+      if (supportsIndexedDB()) {
+        await saveStoredDownload({
+          key,
+          appId: String(id),
+          versionId,
+          version: targetVersion.version || null,
+          filename,
+          mimeType: blob.type || response.headers.get('content-type') || 'application/octet-stream',
+          blob,
+          size: blob.size || 0,
+          savedAt: new Date().toISOString(),
+        });
+        setStoredDownloads((prev) => ({ ...prev, [versionId]: true }));
+        toast.success('Saved for offline install.');
+      }
+      triggerBlobDownload(blob, filename);
+      downloadMutation.mutate(versionId);
+    } catch (err) {
+      toast.error('Could not save locally. Starting download...');
+      window.open(`/apps/${id}/download/redirect?versionId=${versionId}`, '_blank');
+      downloadMutation.mutate(versionId);
+    } finally {
+      setInstallingVersionId(null);
+    }
   };
 
   const handleMirrorDownload = (url, versionId) => {
@@ -166,6 +226,46 @@ export default function AppDetailPage() {
     window.open(url, '_blank');
     downloadMutation.mutate(versionId);
   };
+
+  const visualSeed = getVisualSeed(id);
+  const screenshots = Array.isArray(app?.screenshots) ? app.screenshots : [];
+  const versions = Array.isArray(versionsResponse) ? versionsResponse : versionsResponse?.items || [];
+  const reviews = reviewsResponse?.items || reviewsResponse || [];
+  const favoriteEntries = Array.isArray(favoritesResponse) ? favoritesResponse : favoritesResponse?.items || [];
+  const isFavorited = favoriteEntries.some((entry) => Number(entry?.app?.id) === Number(id));
+  const latestVersion = versions[0] || null;
+
+  useEffect(() => {
+    let active = true;
+    const loadStored = async () => {
+      if (!supportsIndexedDB()) {
+        if (active) setStoredDownloads({});
+        return;
+      }
+      const entries = await Promise.all(
+        versions.map(async (version) => {
+          const key = buildDownloadKey(id, version.id);
+          const record = await getStoredDownload(key);
+          return [version.id, Boolean(record)];
+        }),
+      );
+      if (active) {
+        const nextMap = entries.reduce((acc, [versionId, has]) => {
+          acc[versionId] = has;
+          return acc;
+        }, {});
+        setStoredDownloads(nextMap);
+      }
+    };
+    if (versions.length) {
+      loadStored().catch(() => {});
+    } else {
+      setStoredDownloads({});
+    }
+    return () => {
+      active = false;
+    };
+  }, [id, versions]);
 
   const handleReview = (e) => {
     e.preventDefault();
@@ -185,14 +285,6 @@ export default function AppDetailPage() {
       </div>
     );
   }
-
-  const visualSeed = getVisualSeed(id);
-  const screenshots = Array.isArray(app?.screenshots) ? app.screenshots : [];
-  const versions = Array.isArray(versionsResponse) ? versionsResponse : versionsResponse?.items || [];
-  const reviews = reviewsResponse?.items || reviewsResponse || [];
-  const favoriteEntries = Array.isArray(favoritesResponse) ? favoritesResponse : favoritesResponse?.items || [];
-  const isFavorited = favoriteEntries.some((entry) => Number(entry?.app?.id) === Number(id));
-  const latestVersion = versions[0] || null;
   const heroStats = [
     {
       label: 'Rating',
@@ -398,8 +490,8 @@ export default function AppDetailPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 18 }}>
                 <button
                   className="btn btn-primary btn-lg"
-                  onClick={handleDownload}
-                  disabled={downloadMutation.isPending}
+                  onClick={() => handleInstall(latestVersion)}
+                  disabled={downloadMutation.isPending || !latestVersion || installingVersionId === latestVersion?.id}
                   style={{
                     width: '100%',
                     justifyContent: 'center',
@@ -410,7 +502,13 @@ export default function AppDetailPage() {
                   }}
                 >
                   <Download size={18} />
-                  {downloadMutation.isPending ? 'Preparing download…' : app?.isFree ? 'Install' : 'Buy & Download'}
+                  {installingVersionId === latestVersion?.id
+                    ? 'Installing…'
+                    : downloadMutation.isPending
+                      ? 'Preparing download…'
+                      : storedDownloads[latestVersion?.id]
+                        ? 'Install (Saved)'
+                        : app?.isFree ? 'Install' : 'Buy & Download'}
                 </button>
 
                 {latestVersion?.mirrorUrl && (
@@ -662,14 +760,14 @@ export default function AppDetailPage() {
                               {version.supportedOs?.length ? `Supported: ${version.supportedOs.join(', ')}` : 'Standard release package'}
                             </div>
                             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                              <button
-                                className="btn btn-primary btn-sm"
-                                onClick={() => handleVersionDownload(version)}
-                                disabled={downloadMutation.isPending}
-                                style={{ borderRadius: 12 }}
-                              >
-                                <Download size={14} /> Download v{version.version}
-                              </button>
+                            <button
+                              className="btn btn-primary btn-sm"
+                              onClick={() => handleInstall(version)}
+                              disabled={downloadMutation.isPending || installingVersionId === version.id}
+                              style={{ borderRadius: 12 }}
+                            >
+                              <Download size={14} /> {installingVersionId === version.id ? 'Installing…' : storedDownloads[version.id] ? `Install v${version.version} (Saved)` : `Install v${version.version}`}
+                            </button>
                               {version.mirrorUrl && (
                                 <button
                                   className="btn btn-secondary btn-sm"

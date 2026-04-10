@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import api from '../../lib/api';
+import api, { getStoredRefreshToken, storeSessionTokens } from '../../lib/api';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Plus, Package } from 'lucide-react';
+import { useAuthStore } from '../../store/authStore';
 
 export default function CreateAppPage() {
   const navigate = useNavigate();
+  const { refreshUser, updateUser } = useAuthStore();
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -47,25 +49,58 @@ export default function CreateAppPage() {
     if (!form.description.trim()) { setError('Description is required.'); return; }
     if (!form.categoryId) { setError('Please select a category.'); return; }
 
+    const payload = {
+      name: form.name.trim(),
+      description: form.description.trim(),
+      shortDescription: form.shortDescription.trim() || undefined,
+      categoryId: parseInt(form.categoryId),
+      isFree: form.isFree,
+      price: !form.isFree ? parseFloat(form.price) || 0 : undefined,
+      contentType: form.contentType,
+      licenseType: form.licenseType || undefined,
+      ageRating: form.ageRating || undefined,
+      tags: form.tags,
+    };
+
+    const refreshSession = async () => {
+      const refreshToken = getStoredRefreshToken();
+      if (!refreshToken) throw new Error('Missing refresh token');
+      const { data } = await api.post('/auth/refresh', { refreshToken });
+      storeSessionTokens(data);
+      if (data?.user) updateUser(data.user);
+      if (refreshUser) await refreshUser();
+      return data;
+    };
+
+    const submitWithRetry = async () => {
+      try {
+        return await api.post('/apps', payload);
+      } catch (err) {
+        const status = err?.response?.status;
+        if (status === 401 || status === 403) {
+          try {
+            await refreshSession();
+            return await api.post('/apps', payload);
+          } catch (refreshErr) {
+            throw err;
+          }
+        }
+        throw err;
+      }
+    };
+
     setLoading(true);
     try {
-      const payload = {
-        name: form.name.trim(),
-        description: form.description.trim(),
-        shortDescription: form.shortDescription.trim() || undefined,
-        categoryId: parseInt(form.categoryId),
-        isFree: form.isFree,
-        price: !form.isFree ? parseFloat(form.price) || 0 : undefined,
-        contentType: form.contentType,
-        licenseType: form.licenseType || undefined,
-        ageRating: form.ageRating || undefined,
-        tags: form.tags,
-      };
-      const { data } = await api.post('/apps', payload);
+      await submitWithRetry();
       toast.success('App created successfully!');
       navigate('/developer');
     } catch (err) {
-      setError(err.response?.data?.error?.message || 'Failed to create app.');
+      const status = err?.response?.status;
+      if (status === 403) {
+        setError('Your session does not have developer privileges yet. Please refresh your session or log in again.');
+      } else {
+        setError(err.response?.data?.error?.message || 'Failed to create app.');
+      }
     } finally {
       setLoading(false);
     }

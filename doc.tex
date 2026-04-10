@@ -1,0 +1,189 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage{hyperref}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{float}
+
+% Header and Footer setup
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\textcolor{gray}{Product Development Practice}}
+\lhead{\textbf{WebHarbour Project Report}}
+\cfoot{\thepage}
+
+% Section styling
+\titleformat{\section}{\large\bfseries}{\thesection}{1em}{}[\titlerule]
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{1em}{}
+
+\setlist[itemize]{noitemsep, topsep=4pt}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{8pt}
+\onehalfspacing
+
+\begin{document}
+
+\begin{titlepage}
+    \centering
+    \vspace*{1in}
+    {\LARGE\bfseries WebHarbour: Free App Marketplace and \\ Distribution Platform\par}
+    \vspace{0.4in}
+    {\large Project Report for Product Development Practice\par}
+    \vfill
+    \begin{tabular}{ll}
+        \textbf{Author:} & Your Name \\
+        \textbf{Institution:} & Your Institution \\
+        \textbf{Date:} & April 3, 2026
+    \end{tabular}
+    \vfill
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\section{Abstract}
+WebHarbour is a free app marketplace platform focused on enabling students and indie developers to publish without paid account barriers. The project delivers a backend that supports authentication with role-based access, app listing and version management, reviews, reporting, favorites, downloads, and developer analytics. The API is documented through OpenAPI/Swagger (\texttt{/docs}, \texttt{/openapi.json}) and includes a health endpoint for basic service monitoring. This report presents the problem context, project goals, solution workflow, system architecture, and planned path to frontend integration.
+
+\section{Problem Statement}
+Student and independent developers often face paid entry barriers and complex onboarding processes in major app stores, which limits their ability to publish and iterate on early-stage products. Users seeking community-built tools frequently lack a single place that combines discovery, trustworthy reviews, and safe downloads. Smaller ecosystems also struggle with consistent workflows for versioning, moderation, and reporting, making it harder to keep quality high over time. WebHarbour addresses these gaps by providing a free publishing path backed by structured review, reporting, and role-based governance.
+
+\section{Project Goals and Objectives}
+\begin{itemize}
+    \item \textbf{Zero-cost publishing:} Allow developers to create accounts and list apps without paid entry barriers, while keeping pricing optional at the app level.
+    \item \textbf{Role-based trust model:} Enforce USER, DEVELOPER, MODERATOR, and ADMIN permissions with explicit inheritance and protected routes.
+    \item \textbf{End-to-end app lifecycle:} Support draft, under-review, published, rejected, suspended, and deprecated states, with moderation logs for traceability.
+    \item \textbf{Versioned distribution:} Store app versions with changelogs, checksums, download URLs, and per-version statistics.
+    \item \textbf{Community feedback with safeguards:} Provide one-review-per-user-per-app, review moderation status, and reporting workflows for apps and users.
+    \item \textbf{Catalog structure and discovery:} Maintain categories and tags under admin control to organize the marketplace.
+    \item \textbf{Developer insights:} Provide analytics endpoints for overview totals and per-app trends based on download and engagement data.
+    \item \textbf{Developer-ready API:} Publish Swagger/OpenAPI documentation, standardized error responses, and a health endpoint for reliable integration.
+\end{itemize}
+
+\section{Solution Overview}
+WebHarbour provides a web API that powers three primary experiences: user browsing, developer publishing, and admin/moderator governance. Developers create app listings with categories, tags, platform support, and assets, and upload versioned releases with detailed changelogs and checksums. Submissions move through a review workflow before publication, and moderation actions are recorded for auditability. Users browse the catalog, view app details, download releases, favorite apps, and submit reviews (one per user per app), while reporting tools allow the community to flag problematic content. Administrators manage categories and tags, resolve reports, and control app status transitions. The backend exposes documented endpoints and standardized error responses to make frontend integration predictable.
+
+\section{System Architecture}
+The system is organized as a decoupled client and API with a relational data layer and pluggable storage.
+\begin{itemize}
+    \item \textbf{Client:} A React + Vite frontend scaffold exists in \texttt{clientreact}, with dependencies for routing (\texttt{react-router-dom}) and API access (\texttt{axios}, \texttt{@tanstack/react-query}).
+    \item \textbf{API Server:} Node.js + Express in \texttt{server/src}, organized into controllers, services, routes, and middleware. Core route groups include authentication, apps, reviews, reports, admin, developer, catalog, and recommendations.
+    \item \textbf{Authentication and Roles:} JWT access/refresh tokens with middleware enforcing USER, DEVELOPER, MODERATOR, and ADMIN permissions.
+    \item \textbf{Data Layer:} Prisma ORM with a PostgreSQL datasource. The schema models apps, versions, assets, downloads, favorites, reviews, reports, moderation logs, and analytics, with indexes and uniqueness constraints for integrity.
+    \item \textbf{Storage:} App assets and version downloads store metadata for multiple providers (S3, Cloudinary, local, GridFS) and optional checksums.
+    \item \textbf{Documentation and Ops:} Swagger/OpenAPI documentation is served at \texttt{/docs} and \texttt{/openapi.json}; a \texttt{/health} endpoint supports service checks. Development logging uses \texttt{morgan} when \texttt{NODE\_ENV=development}.
+\end{itemize}
+
+\section{Product Specification}
+\begin{itemize}
+    \item \textbf{Platform scope:} Web-based app marketplace with a documented REST API and a planned React frontend.
+    \item \textbf{User roles:} USER, DEVELOPER, MODERATOR, and ADMIN with explicit role inheritance and route protection.
+    \item \textbf{App lifecycle:} DRAFT, UNDER\_REVIEW, PUBLISHED, REJECTED, SUSPENDED, and DEPRECATED states with moderation logs.
+    \item \textbf{Catalog management:} Admin-managed categories and tags for organized listings.
+    \item \textbf{Versioned releases:} App versions include release type, changelogs, checksums, download URLs, and per-version stats.
+    \item \textbf{Community feedback:} Reviews (one per user per app), review moderation status, and a reporting workflow.
+    \item \textbf{Engagement tracking:} Downloads, favorites, and analytics summaries for developers.
+    \item \textbf{Storage metadata:} Support for multiple storage providers and asset types with optional checksums.
+    \item \textbf{API documentation:} OpenAPI/Swagger available at \texttt{/docs} and \texttt{/openapi.json}.
+\end{itemize}
+
+\section{Usefulness of the Product}
+\begin{itemize}
+    \item \textbf{For developers:} A no-fee publishing path, structured versioning, and analytics for tracking adoption.
+    \item \textbf{For users:} Centralized discovery of community-built apps with reviews, reporting, and clear version details.
+    \item \textbf{For moderators/admins:} Role-based controls, app status workflows, and moderation logs for accountability.
+\end{itemize}
+
+\section{Availability of Similar Products in the Market}
+There are established commercial app stores, open-source code hosting platforms, and package registries that enable distribution. Most commercial stores require paid developer programs, while code hosting and registries focus on source code or libraries rather than end-user app listings. WebHarbour positions itself as a free-core marketplace with built-in moderation, review, and versioning workflows tailored for community app publishing.
+
+\section{What Is Novel/New in the Product}
+\begin{itemize}
+    \item \textbf{Free-core with governance:} A zero-fee publishing model paired with role-based moderation and audit logs.
+    \item \textbf{Structured lifecycle and versioning:} Explicit app statuses and rich version metadata (changelogs, checksums, release types).
+    \item \textbf{Unified trust mechanisms:} Reviews, reporting, and moderation status integrated across the platform.
+    \item \textbf{Developer-ready API:} Standardized error responses and OpenAPI documentation for predictable integration.
+\end{itemize}
+
+\section{Individual Contribution of Each Member}
+The following sections summarize each member's contributions to the project implementation.
+\subsection{Rushikesh Iche}
+\begin{itemize}
+    \item Implemented backend APIs in \texttt{server/controllers} and \texttt{server/services}.
+    \item Designed Prisma schema and database migrations in \texttt{server/prisma}.
+    \item Developed authentication flows in \texttt{auth.controller.js} and \texttt{auth.middleware.js}.
+    \item Integrated file storage via \texttt{upload.service.js} and \texttt{cloudinary.js}.
+\end{itemize}
+
+\subsection{Arnav Sharda}
+\begin{itemize}
+    \item Developed the React frontend core and routing logic.
+    \item Created UI components for the marketplace and developer dashboard.
+    \item Managed API integration using Axios/Fetch in \texttt{clientreact/src/lib/api.js}.
+    \item Implemented responsive design and client-side error handling.
+\end{itemize}
+
+\subsection{Gaurav Singh}
+\begin{itemize}
+    \item Designed \texttt{recommendation.service.js} and \texttt{analytics.service.js}.
+    \item Built review logic in \texttt{review.controller.js} and \texttt{review.service.js}.
+    \item Implemented moderation workflows and content filters in \texttt{moderation.service.js}.
+    \item Developed catalog ranking and filtering logic.
+\end{itemize}
+
+\subsection{Rehant Roy}
+\begin{itemize}
+    \item Developed the Admin Console and role management functionality.
+    \item Configured CI/CD pipelines and deployment environments (\texttt{env.js}).
+    \item Authored integration tests: \texttt{report-resolution.test.js} and \texttt{auth.flows.test.js}.
+    \item Led final QA, bug tracking, and technical documentation.
+\end{itemize}
+
+\section{User Personas}
+\begin{itemize}
+    \item \textbf{Student Developer:} Seeks a portfolio-building platform without entry fees.
+    \item \textbf{Indie Maker:} Needs high visibility for niche tools.
+    \item \textbf{Budget User:} Wants secure, free alternatives to mainstream software.
+    \item \textbf{Moderator:} Ensures the ecosystem remains safe and policy-compliant.
+\end{itemize}
+
+\section{Functional Requirements}
+\begin{longtable}{|l|p{0.75\textwidth}|}
+\hline
+\rowcolor{gray!10} \textbf{ID} & \textbf{Requirement Description} \\ \hline
+FR-01 & Developer account creation and identity verification. \\ \hline
+FR-02 & Submission and version management for app listings. \\ \hline
+FR-03 & Multi-criteria search (tags, categories, keywords). \\ \hline
+FR-04 & Detailed app pages with screenshots and changelogs. \\ \hline
+FR-05 & User review system with sentiment/abuse moderation. \\ \hline
+FR-06 & Reporting system for malicious content or bugs. \\ \hline
+FR-07 & Administrative dashboard for listing approvals/rejections. \\ \hline
+FR-08 & Basic telemetry (downloads, views, and active installs). \\ \hline
+FR-09 & Secure file hosting with checksum validation. \\ \hline
+\end{longtable}
+
+\section{Non-Functional Requirements}
+\begin{itemize}
+    \item \textbf{Security:} Use JWT access and refresh tokens, bcrypt-based password hashing, and role-based authorization middleware for protected routes.
+    \item \textbf{Reliability:} Provide a health endpoint and consistent error responses (\texttt{ErrorResponse}) for predictable client behavior.
+    \item \textbf{Data Integrity:} Enforce unique constraints (e.g., one review per user per app, unique slugs) and relational consistency in the Prisma schema.
+    \item \textbf{Maintainability:} Keep a modular server structure (controllers, services, routes, middleware) with centralized error handling and documented APIs.
+    \item \textbf{Observability:} Log requests in development using \texttt{morgan} and store moderation actions in \texttt{ModerationLog} for audit trails.
+    \item \textbf{Testability:} Maintain automated tests for critical flows (auth, app lifecycle, review rules, report resolution, favorites tracking) and provide seed scripts for baseline data.
+\end{itemize}
+
+\section{Business Model}
+\begin{itemize}
+    \item \textbf{Current model (implemented):} Free-core marketplace. Publishing and discovery do not require fees, and apps default to free (\texttt{isFree}).
+    \item \textbf{Optional pricing support (schema-ready):} Listings can store a price and discount price (\texttt{price}, \texttt{discountPrice}) even though payment processing is not implemented yet.
+    \item \textbf{Financial record structure (schema-ready):} \texttt{Transaction} captures type (purchase, refund, withdrawal, commission), amount, currency, payment method, and status for auditable accounting when payments are introduced.
+    \item \textbf{Future options (not implemented yet):} Paid app downloads, featured placements, or premium analytics could be enabled later without changing the core free access model.
+\end{itemize}
+
+\end{document}
